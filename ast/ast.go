@@ -51,6 +51,10 @@ func (o *Operator) EndPos() token.Pos { return o.Pos + 1 }
 func (e *Expression) BegPos() token.Pos { return e.LParen }
 func (e *Expression) EndPos() token.Pos { return e.RParen }
 
+func NewFile(beg, end token.Pos) *File {
+	return &File{beg, end, make([]Node, 0), NewScope(nil)}
+}
+
 func (f *File) BegPos() token.Pos { return f.pos }
 func (f *File) EndPos() token.Pos { return f.end }
 

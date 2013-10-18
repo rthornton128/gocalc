@@ -19,35 +19,19 @@ func ParseFile(f *token.File, str string) ast.Node {
 		fmt.Println("File size does not match string length.")
 		return nil
 	}
+
 	p := new(Parser)
 	p.Init(f, str)
-	// This section is not ideal and should be handled better. Basically,
-	// anything after the root node is an error. After
-	// root is retrieved, I need to determine if anything follows and what kind
-	// of error to generate.
-	root, err := p.next()
-	for {
-		n, err := p.next()
+	root := ast.NewFile(token.Pos(1), token.Pos(len(str)+1))
+	for n, err := p.next(); n != nil; n, err = p.next() {
 		if err != nil {
-			p.file.AddError(root.EndPos(), "Parse: ", err)
+			p.file.AddError(err.pos, "Parse: ", err.msg)
 		}
-		if n == nil {
-			break
+		if _, ok := n.(*ast.Operator); ok {
+			p.file.AddError(n.EndPos(), "Parse: Invalid expression, operator "+
+				"may not be outside of expression")
 		}
-	}
-	if err != nil {
-		if root == nil {
-			p.file.AddError(token.Pos(1), "Parse: ", err)
-		} else {
-			p.file.AddError(root.EndPos(), "Parse: ", err)
-		}
-	}
-	if _, ok := root.(*ast.Operator); ok {
-		if root == nil {
-			p.file.AddError(token.Pos(1), "Parse: Invalid expression")
-		} else {
-			p.file.AddError(root.EndPos(), "Parse: Invalid expression")
-		}
+		root.Nodes = append(root.Nodes, n)
 	}
 
 	if p.file.NumErrors() > 0 {
@@ -68,11 +52,16 @@ func (p *Parser) Init(file *token.File, expr string) {
 	p.scan.Init(file, expr)
 }
 
+type perror struct {
+	pos token.Pos
+	msg error
+}
+
 var closeError = errors.New("Unexpected ')'")
 var eofError = errors.New("Reached end of file")
 var openError = errors.New("Opening '(' with no closing bracket.")
 
-func (p *Parser) next() (ast.Node, error) {
+func (p *Parser) next() (ast.Node, *perror) {
 	tok, pos, lit := p.scan.Scan()
 	open := false
 	switch tok {
@@ -93,9 +82,11 @@ func (p *Parser) next() (ast.Node, error) {
 		offset := token.Pos(1)
 		for {
 			n, err := p.next()
-			if err == closeError {
-				open = false
-				break
+			if err != nil {
+				if err.msg == closeError {
+					open = false
+					break
+				}
 			}
 			if n == nil {
 				break
@@ -104,13 +95,13 @@ func (p *Parser) next() (ast.Node, error) {
 			offset = n.EndPos() // - n.BegPos()
 		}
 		if open == true {
-			return nil, openError
+			return nil, &perror{pos, openError}
 		}
 		e.RParen = pos + offset
 		return e, nil
 	case token.RPAREN:
 		if open == false {
-			return nil, closeError
+			return nil, &perror{pos, closeError}
 		}
 	}
 	return nil, nil // eofError

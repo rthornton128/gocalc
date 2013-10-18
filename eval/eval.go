@@ -22,8 +22,25 @@ func EvalExpr(expr string) interface{} {
 	return eval(parser.ParseExpr(expr))
 }
 
+//func EvalFile(str string) interface{}
+
 func eval(n ast.Node) interface{} {
 	switch node := n.(type) {
+	case *ast.File:
+		var x interface{}
+		fmt.Println("File type; any nodes?")
+		for _, n := range node.Nodes {
+			fmt.Println("evaluating nodes...")
+			x = eval(n) // scoping seems like it should come into play here
+			switch t := x.(type) {
+			case *ast.Identifier:
+				fmt.Println("Error - Unknown identifier:", t.Lit)
+				return nil
+			default:
+				fmt.Printf("TYPE: %T\n", n)
+			}
+		}
+		return x
 	case *ast.Identifier:
 		if fn, ok := builtins[node.Lit]; ok {
 			return fn
@@ -31,7 +48,7 @@ func eval(n ast.Node) interface{} {
 		if n, ok := variables[node.Lit]; ok {
 			return n
 		}
-		return nil // return node; this is a scoping issue
+		return node
 	case *ast.Number:
 		return node.Val
 	case *ast.Operator:
