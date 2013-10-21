@@ -103,6 +103,9 @@ func (p *Parser) next() (ast.Node, *perror) {
 		if open == false {
 			return nil, &perror{pos, closeError}
 		}
+	case token.COMMENT:
+		//fmt.Println("Found comment:", lit)
+		return p.next()
 	}
 	return nil, nil // eofError
 }

@@ -28,16 +28,16 @@ func eval(n ast.Node) interface{} {
 	switch node := n.(type) {
 	case *ast.File:
 		var x interface{}
-		fmt.Println("File type; any nodes?")
+		//fmt.Println("File type; any nodes?")
 		for _, n := range node.Nodes {
-			fmt.Println("evaluating nodes...")
+			//fmt.Println("evaluating nodes...")
 			x = eval(n) // scoping seems like it should come into play here
 			switch t := x.(type) {
 			case *ast.Identifier:
 				fmt.Println("Error - Unknown identifier:", t.Lit)
 				return nil
-			default:
-				fmt.Printf("TYPE: %T\n", n)
+				//default:
+				//fmt.Printf("TYPE: %T\n", n)
 			}
 		}
 		return x
