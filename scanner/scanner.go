@@ -85,7 +85,7 @@ func (s *Scanner) next() {
 		s.ch = 0
 	}
 	if s.ch == '\n' {
-		s.file.AddLine(token.Pos(s.off))
+		s.file.AddLine(s.off)
 	}
 	s.roff++
 }

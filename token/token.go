@@ -21,5 +21,3 @@ const (
 	NUMBER
 	lit_end
 )
-
-type Pos int

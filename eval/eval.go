@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"misc/calc/ast"
 	"misc/calc/parser"
+	"misc/calc/token"
 )
 
 var builtins = map[string]func([]interface{}) interface{}{
@@ -19,22 +20,36 @@ var builtins = map[string]func([]interface{}) interface{}{
 var variables = map[string]interface{}{}
 
 func EvalExpr(expr string) interface{} {
-	return eval(parser.ParseExpr(expr))
+	return EvalFile("", expr)
 }
 
-//func EvalFile(str string) interface{}
+func EvalFile(fname, expr string) interface{} {
+	f := token.NewFile(fname, expr)
+	n := parser.ParseFile(f, expr)
+	if f.NumErrors() > 0 {
+		f.PrintErrors()
+		return nil
+	}
+	res := eval(f, n)
+	if f.NumErrors() > 0 {
+		f.PrintErrors()
+		return nil
+	}
+	return res
+}
 
-func eval(n ast.Node) interface{} {
+func eval(f *token.File, n ast.Node) interface{} {
 	switch node := n.(type) {
 	case *ast.File:
 		var x interface{}
 		//fmt.Println("File type; any nodes?")
 		for _, n := range node.Nodes {
 			//fmt.Println("evaluating nodes...")
-			x = eval(n) // scoping seems like it should come into play here
+			x = eval(f, n) // scoping seems like it should come into play here
 			switch t := x.(type) {
 			case *ast.Identifier:
-				fmt.Println("Error - Unknown identifier:", t.Lit)
+				//fmt.Println("t.Pos():", t.Pos())
+				f.AddError(t.Pos(), "Unknown identifier: ", t.Lit)
 				return nil
 				//default:
 				//fmt.Printf("TYPE: %T\n", n)
@@ -52,29 +67,34 @@ func eval(n ast.Node) interface{} {
 	case *ast.Number:
 		return node.Val
 	case *ast.Operator:
-		// need to produce error if no built-in
-		if fn, ok := builtins[string(node.Val)]; ok {
-			return fn
-		}
-		return nil
+		// technically, it should be impossible for this to fail. If it does,
+		// it should be a catistrophic error (like the panic that will be
+		// produced) because Operators are only ever built-in functions. It
+		// should be impossible for the scanner to scan something as an operator
+		// if it's not a built-in.
+		return builtins[string(node.Val)]
 	case *ast.Expression:
-		if len(node.Nodes) < 2 {
+		if len(node.Nodes) < 1 {
+			f.AddError(node.Pos(), "Empty expression not allowed")
 			return nil
 		}
-		fn, _ := eval(node.Nodes[0]).(func([]interface{}) interface{})
+		fn, ok := eval(f, node.Nodes[0]).(func([]interface{}) interface{})
+		if !ok {
+			f.AddError(node.Nodes[0].Pos(), "First element of an expression must "+
+				"be a function.")
+			return nil
+		}
 		args := make([]interface{}, len(node.Nodes[1:]))
 		for i, node := range node.Nodes[1:] {
-			args[i] = eval(node)
+			args[i] = eval(f, node)
 		}
 		//fmt.Println("calling fn with", len(args), "args")
 
-		// the following line could be changed to:
-		// res := fn(args)
-		// if err, ok := res.(error); ok {
-		//   file.AddError(node.BegPos(), err)
-		// }
-		// return res
-		return fn(args)
+		res := fn(args)
+		if err, ok := res.(error); ok {
+			f.AddError(node.Pos(), err)
+		}
+		return res
 	}
 	return nil
 }

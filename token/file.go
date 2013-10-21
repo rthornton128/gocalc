@@ -10,7 +10,7 @@ type Error struct {
 type File struct {
 	base  Pos     // Base Pos of file
 	errs  []Error // List of errors which have occured in processing
-	lines []Pos   // Location of each line ending ('\n')
+	lines []int   // Location of each line ending ('\n')
 	name  string  // Filename
 	size  int     // Length of file
 }
@@ -24,16 +24,20 @@ func NewFile(name, str string) *File {
 	return f
 }
 
-func (f *File) AddLine(p Pos) {
-	if f.ValidPos(p) {
-		f.lines = append(f.lines, p)
-	}
+func (f *File) AddLine(off int) {
+	f.lines = append(f.lines, off)
 }
 
 func (f *File) AddError(p Pos, args ...interface{}) {
 	if f.ValidPos(p) {
 		f.errs = append(f.errs, Error{p, fmt.Sprint(args...)})
+	} else {
+		panic("Invalid Position!")
 	}
+}
+
+func (f *File) Base() Pos {
+	return f.base
 }
 
 func (f *File) NumErrors() int {
@@ -42,15 +46,16 @@ func (f *File) NumErrors() int {
 
 func (f *File) PrintError(e Error) {
 	line, column := 1, int(e.pos)
+	//fmt.Println("lines:", f.lines)
 	for i, p := range f.lines {
-		//fmt.Println(e.pos, "vs", p)
-		if e.pos < p {
+		//fmt.Println(e.pos, "vs", p+1)
+		//fmt.Println("i:", i)
+		line = i + 1
+		column = p - int(e.pos) + 1
+		if int(e.pos) < p+1 {
 			break
 		}
-		line = i + 1
-		column = int(p-e.pos) + 1
 	}
-	//fmt.Println("e.pos:", e.pos, "f.lines:", f.lines)
 	if len(f.name) > 0 {
 		fmt.Println(f.name, "- Line:", line, "Column:", column, "-", e.msg)
 	} else {
@@ -70,4 +75,12 @@ func (f *File) Size() int {
 
 func (f *File) ValidPos(p Pos) bool {
 	return p >= f.base && p < f.base+Pos(f.size)
+}
+
+type Pos int
+
+const NoPos Pos = 0
+
+func (p Pos) IsValid() bool {
+	return p > NoPos
 }

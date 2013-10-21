@@ -1,0 +1,7 @@
+;+(+ 2 3)) ; uncomment to produce some errors (was for testing)
+; a comment
+(print 24)
+(print (+ (* 3 10) 6))
+;a
+(set a (- 5 2))
+(print a)

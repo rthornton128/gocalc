@@ -6,20 +6,20 @@ import (
 
 type (
 	Node interface {
-		BegPos() token.Pos
-		EndPos() token.Pos
+		Pos() token.Pos
+		End() token.Pos
 	}
 	Identifier struct {
-		Pos token.Pos
+		Id  token.Pos
 		Lit string
 	}
 	Number struct {
-		Pos token.Pos
+		Num token.Pos
 		Lit string
 		Val int
 	}
 	Operator struct {
-		Pos token.Pos
+		Opr token.Pos
 		Val byte
 	}
 	Expression struct {
@@ -39,24 +39,24 @@ type (
 	}
 )
 
-func (i *Identifier) BegPos() token.Pos { return i.Pos }
-func (i *Identifier) EndPos() token.Pos { return i.Pos + token.Pos(len(i.Lit)) }
+func (i *Identifier) Pos() token.Pos { return i.Id }
+func (i *Identifier) End() token.Pos { return i.Id + token.Pos(len(i.Lit)) }
 
-func (n *Number) BegPos() token.Pos { return n.Pos }
-func (n *Number) EndPos() token.Pos { return n.Pos + token.Pos(len(n.Lit)) }
+func (n *Number) Pos() token.Pos { return n.Num }
+func (n *Number) End() token.Pos { return n.Num + token.Pos(len(n.Lit)) }
 
-func (o *Operator) BegPos() token.Pos { return o.Pos }
-func (o *Operator) EndPos() token.Pos { return o.Pos + 1 }
+func (o *Operator) Pos() token.Pos { return o.Opr }
+func (o *Operator) End() token.Pos { return o.Opr + 1 }
 
-func (e *Expression) BegPos() token.Pos { return e.LParen }
-func (e *Expression) EndPos() token.Pos { return e.RParen }
+func (e *Expression) Pos() token.Pos { return e.LParen }
+func (e *Expression) End() token.Pos { return e.RParen }
 
 func NewFile(beg, end token.Pos) *File {
 	return &File{beg, end, make([]Node, 0), NewScope(nil)}
 }
 
-func (f *File) BegPos() token.Pos { return f.pos }
-func (f *File) EndPos() token.Pos { return f.end }
+func (f *File) Pos() token.Pos { return f.pos }
+func (f *File) End() token.Pos { return f.end }
 
 func NewScope(parent *Scope) *Scope {
 	return &Scope{make(map[string]Node, 0), parent}
