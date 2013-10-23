@@ -21,7 +21,7 @@ func ParseFile(f *token.File, str string) *ast.File {
 	}
 
 	p := new(Parser)
-	p.Init(f, str)
+	p.init(f, str)
 	//p.parse() // will become parseFile()
 	root := ast.NewFile(token.Pos(1), token.Pos(len(str)+1))
 	for n, err := p.parse(); ; n, err = p.parse() {
@@ -53,7 +53,7 @@ type Parser struct {
 	lit  string
 }
 
-func (p *Parser) Init(file *token.File, expr string) {
+func (p *Parser) init(file *token.File, expr string) {
 	p.file = file
 	p.scan = new(scanner.Scanner)
 	p.scan.Init(file, expr)
@@ -90,6 +90,10 @@ func (p *Parser) parse() (ast.Node, *perror) {
 	case token.LPAREN:
 		return p.parseExpression()
 	case token.RPAREN:
+		// I don't really like this solution...it feels clunky/messy. It's like
+		// using exception handling. Receiving an RPAREN is not an error unless
+		// it's out of place, so treating it like one no matter the situation
+		// seems stupid.
 		return nil, &perror{p.pos, closeError}
 	case token.COMMENT:
 		// consume comment and move on
@@ -108,6 +112,11 @@ func (p *Parser) parseExpression() (*ast.Expression, *perror) {
 	e.LParen = p.pos
 	offset := token.Pos(1)
 	for {
+		// here is where I could attack scope, rather than during the evaluation
+		// stage. I will need to track the current (inner) scope in p (parser).
+		// I could also make more intelligent decisions about what type of
+		// expression I have rather than trying to resolve it runtime, too. This
+		// could allow me to make better errors and optimizations later on
 		p.next()
 		n, err := p.parse()
 		if err != nil {
