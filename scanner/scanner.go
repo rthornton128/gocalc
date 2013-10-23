@@ -25,7 +25,8 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 
 	if isAlpha(s.ch) {
 		pos, lit = s.scanIdentifier()
-		return token.IDENT, pos, lit
+		tok = token.Lookup(lit)
+		return
 	}
 	if isDigit(s.ch) {
 		pos, lit = s.scanNumber()
@@ -57,6 +58,30 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 		pos, lit = s.scanComment()
 		tok = token.COMMENT
 		return
+	case '=':
+		tok = token.EQ
+	case '<':
+		switch s.ch {
+		case '=':
+			lit = string(ch) + string(s.ch)
+			pos, tok = token.Pos(s.off-1), token.LTE
+			s.next()
+			return
+		case '>':
+			lit = string(ch) + string(s.ch)
+			pos, tok = token.Pos(s.off-1), token.NEQ
+			s.next()
+			return
+		}
+		tok = token.LT
+	case '>':
+		if s.ch == '=' {
+			lit = string(ch) + string(s.ch)
+			pos, tok = token.Pos(s.off-1), token.GTE
+			s.next()
+			return
+		}
+		tok = token.GT
 	default:
 		if s.off >= len(s.str) {
 			tok = token.EOF

@@ -20,18 +20,22 @@ type (
 	}
 	Operator struct {
 		Opr token.Pos
-		Val byte
+		Val string
 	}
 	Expression struct {
 		LParen token.Pos
 		RParen token.Pos
 		Nodes  []Node
+		Scope  *Scope
 	}
 	File struct {
 		pos   token.Pos
 		end   token.Pos
 		Nodes []Node
 		Scope *Scope
+	}
+	PrintStmt struct {
+		*Expression
 	}
 	Scope struct {
 		defs   map[string]Node
@@ -51,6 +55,9 @@ func (o *Operator) End() token.Pos { return o.Opr + 1 }
 func (e *Expression) Pos() token.Pos { return e.LParen }
 func (e *Expression) End() token.Pos { return e.RParen }
 
+//func (p *PrintStmt) Pos() token.Pos { return p.Prnt }
+//func (p *PrintStmt) End() token.Pos { return p.Prnt + 5 } // derp
+
 func NewFile(beg, end token.Pos) *File {
 	return &File{beg, end, make([]Node, 0), NewScope(nil)}
 }
@@ -59,10 +66,20 @@ func (f *File) Pos() token.Pos { return f.pos }
 func (f *File) End() token.Pos { return f.end }
 
 func NewScope(parent *Scope) *Scope {
-	return &Scope{make(map[string]Node, 0), parent}
+	return &Scope{make(map[string]Node), parent}
 }
 
 func (s *Scope) Insert(ident string, n Node) {
+	s.defs[ident] = n
 }
 
-func (s *Scope) Lookup() Node { return nil }
+func (s *Scope) Lookup(ident string) Node {
+	m := s
+	for m != nil {
+		if n, ok := m.defs[ident]; ok {
+			return n
+		}
+		m = m.parent
+	}
+	return nil
+}

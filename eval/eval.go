@@ -13,6 +13,13 @@ var builtins = map[string]func([]interface{}) interface{}{
 	"*":     funcMul,
 	"/":     funcDiv,
 	"%":     funcMod,
+	"=":     funcEq,
+	"<":     funcLess,
+	"<=":    funcLessEq,
+	">":     funcGreater,
+	">=":    funcGreaterEq,
+	"<>":    funcNotEq,
+	"if":    funcIf,
 	"print": funcPrint,
 	"set":   funcSet,
 }
@@ -42,17 +49,12 @@ func eval(f *token.File, n ast.Node) interface{} {
 	switch node := n.(type) {
 	case *ast.File:
 		var x interface{}
-		//fmt.Println("File type; any nodes?")
 		for _, n := range node.Nodes {
-			//fmt.Println("evaluating nodes...")
 			x = eval(f, n) // scoping seems like it should come into play here
 			switch t := x.(type) {
 			case *ast.Identifier:
-				//fmt.Println("t.Pos():", t.Pos())
 				f.AddError(t.Pos(), "Unknown identifier: ", t.Lit)
 				return nil
-				//default:
-				//fmt.Printf("TYPE: %T\n", n)
 			}
 		}
 		return x
@@ -144,6 +146,50 @@ func genFunc(fn func(a, b int) int, args []interface{}) interface{} {
 		}
 	}
 	return res
+}
+
+func funcEq(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return convBool(a == b) }, args)
+}
+
+func funcLess(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return convBool(a < b) }, args)
+}
+
+func funcLessEq(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return convBool(a <= b) }, args)
+}
+
+func funcGreater(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return convBool(a > b) }, args)
+}
+
+func funcGreaterEq(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return convBool(a >= b) }, args)
+}
+
+func funcNotEq(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return convBool(a != b) }, args)
+}
+
+func convBool(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func funcIf(args []interface{}) interface{} {
+	if len(args) != 3 {
+		return nil //should produce error
+	}
+	if eq, ok := args[0].(int); ok {
+		if eq == 0 {
+			return args[2]
+		}
+		return args[1]
+	}
+	return nil // also an error
 }
 
 func funcPrint(args []interface{}) interface{} {

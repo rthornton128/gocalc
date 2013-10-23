@@ -5,3 +5,10 @@
 ;a
 (set a (- 5 2))
 (print a)
+(print (< 1 2))
+(print (>= 3 3))
+(print (<> 3 3))
+(print (if (< 1 2) (+ 2 3) (- 3 2)))
+(if 1 ; I'm sorry, but this is so awesome that it works
+	(print 2)
+	(print 3))
