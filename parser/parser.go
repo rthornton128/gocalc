@@ -20,10 +20,11 @@ func ParseFile(f *token.File, str string) *ast.File {
 		return nil
 	}
 
-	p := new(Parser)
-	p.init(f, str)
-	//p.parse() // will become parseFile()
 	root := ast.NewFile(token.Pos(1), token.Pos(len(str)+1))
+	p := new(parser)
+	p.init(f, str)
+	p.topScope = root.Scope
+	p.curScope = root.Scope
 	for n, err := p.parse(); ; n, err = p.parse() {
 		if err != nil {
 			p.file.AddError(err.pos, "Parse: ", err.msg)
@@ -45,15 +46,17 @@ func ParseFile(f *token.File, str string) *ast.File {
 	return root
 }
 
-type Parser struct {
-	file *token.File
-	scan *scanner.Scanner
-	tok  token.Token
-	pos  token.Pos
-	lit  string
+type parser struct {
+	file     *token.File
+	scan     *scanner.Scanner
+	topScope *ast.Scope
+	curScope *ast.Scope
+	tok      token.Token
+	pos      token.Pos
+	lit      string
 }
 
-func (p *Parser) init(file *token.File, expr string) {
+func (p *parser) init(file *token.File, expr string) {
 	p.file = file
 	p.scan = new(scanner.Scanner)
 	p.scan.Init(file, expr)
@@ -69,7 +72,7 @@ var closeError = errors.New("Unexpected ')'")
 var eofError = errors.New("Reached end of file")
 var openError = errors.New("Opening '(' with no closing bracket.")
 
-func (p *Parser) next() {
+func (p *parser) next() {
 	p.tok, p.pos, p.lit = p.scan.Scan()
 	p.pos += p.file.Base()
 	//fmt.Println("tok:", p.tok)
@@ -77,7 +80,7 @@ func (p *Parser) next() {
 	//fmt.Println("lit:", p.lit)
 }
 
-func (p *Parser) parse() (ast.Node, *perror) {
+func (p *parser) parse() (ast.Node, *perror) {
 	var n ast.Node = nil
 	switch p.tok {
 	case token.ADD, token.SUB, token.MUL, token.DIV, token.MOD, token.LT,
@@ -103,21 +106,34 @@ func (p *Parser) parse() (ast.Node, *perror) {
 	return n, nil // eofError
 }
 
-func (p *Parser) parseExpression() (*ast.Expression, *perror) {
+func (p *parser) parseExpression() (*ast.Expression, *perror) {
 	// an lparen was found. scan until an rparen found. determine expression
 	// type: define (arg list, body), if, print and set expressions or
 	// a typical math expression (operator).
 	open := true
 	e := new(ast.Expression)
+	e.Scope = ast.NewScope(p.curScope)
+	p.curScope = e.Scope
 	e.LParen = p.pos
 	offset := token.Pos(1)
+
+	p.next()
+	switch p.tok {
+	case token.LPAREN:
+		p.file.AddError(p.pos, "Parse: First element of an expression may not "+
+			"be another expression!")
+		return nil, nil
+	case token.RPAREN:
+		p.file.AddError(p.pos, "Parse: Empty expression not allowed.")
+		return nil, nil
+	}
 	for {
 		// here is where I could attack scope, rather than during the evaluation
 		// stage. I will need to track the current (inner) scope in p (parser).
 		// I could also make more intelligent decisions about what type of
 		// expression I have rather than trying to resolve it runtime, too. This
 		// could allow me to make better errors and optimizations later on
-		p.next()
+
 		n, err := p.parse()
 		if err != nil {
 			if err.msg == closeError {
@@ -125,11 +141,13 @@ func (p *Parser) parseExpression() (*ast.Expression, *perror) {
 				break
 			}
 		}
+
 		if n == nil {
 			break
 		}
 		e.Nodes = append(e.Nodes, n)
 		offset = n.End() // - n.Pos()
+		p.next()
 	}
 	if open == true {
 		return nil, &perror{p.pos, openError}
@@ -138,11 +156,11 @@ func (p *Parser) parseExpression() (*ast.Expression, *perror) {
 	return e, nil
 }
 
-func (p *Parser) parseIdentifier() *ast.Identifier {
+func (p *parser) parseIdentifier() *ast.Identifier {
 	return &ast.Identifier{p.pos, p.lit}
 }
 
-func (p *Parser) parseNumber() *ast.Number {
+func (p *parser) parseNumber() *ast.Number {
 	i, err := strconv.ParseInt(p.lit, 0, 64)
 	if err != nil {
 		p.file.AddError(p.pos, "Parse:", err)

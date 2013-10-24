@@ -1,8 +1,13 @@
-;+(+ 2 3)) ; uncomment to produce some errors (was for testing)
 ; a comment
 (print 24)
 (print (+ (* 3 10) 6))
+
+; The follow section contains errors
 ;a
+;+(+ 2 3)) ; uncomment to produce some errors (was for testing)
+;((+ 2 3))
+;()
+
 (set a (- 5 2))
 (print a)
 (print (< 1 2))
