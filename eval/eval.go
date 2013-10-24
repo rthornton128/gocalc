@@ -76,6 +76,7 @@ func eval(f *token.File, n ast.Node) interface{} {
 		// if it's not a built-in.
 		return builtins[string(node.Val)]
 	case *ast.Expression:
+		//fmt.Println(node.Nodes)
 		if len(node.Nodes) < 1 {
 			f.AddError(node.Pos(), "Empty expression not allowed")
 			return nil

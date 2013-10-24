@@ -8,8 +8,12 @@
 ;((+ 2 3))
 ;()
 
+;(set +)
 (set a (- 5 2))
 (print a)
+;(print +) ; should fail
+;(print b) ; should fail
+
 (print (< 1 2))
 (print (>= 3 3))
 (print (<> 3 3))
