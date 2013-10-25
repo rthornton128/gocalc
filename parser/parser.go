@@ -117,7 +117,7 @@ func (p *parser) parseExpression() (ast.Node, *perror) {
 	//e.Scope = ast.NewScope(p.curScope)
 	//p.curScope = e.Scope
 	e.LParen = p.pos
-	offset := token.Pos(1)
+	//offset := token.Pos(1)
 
 	p.next()
 	switch p.tok {
@@ -130,14 +130,10 @@ func (p *parser) parseExpression() (ast.Node, *perror) {
 		return nil, nil
 	case token.DEFINE:
 		return p.parseDefineExpression(e.LParen), nil
-		//e.Nodes = p.parseDefineExpression()
-		//open = false
 	case token.PRINT:
-		e.Nodes = p.parsePrintExpression()
-		open = false
+		return p.parsePrintExpression(e.LParen), nil
 	case token.SET:
-		e.Nodes = p.parseSetExpression()
-		open = false
+		return p.parseSetExpression(e.LParen), nil
 	default:
 		// actually, I want to remove this section entirely...
 		for {
@@ -159,14 +155,14 @@ func (p *parser) parseExpression() (ast.Node, *perror) {
 				break
 			}
 			e.Nodes = append(e.Nodes, n)
-			offset = n.End() // - n.Pos()
+			//offset = n.End() // - n.Pos()
 			p.next()
 		}
 	}
 	if open == true {
 		return nil, &perror{p.pos, openError}
 	}
-	e.RParen = p.pos + offset
+	e.RParen = p.pos
 	return e, nil
 }
 
@@ -200,12 +196,13 @@ func (p *parser) parseNumber() *ast.Number {
 	return &ast.Number{p.pos, p.lit, int(i)}
 }
 
-func (p *parser) parsePrintExpression() []ast.Node {
-	nodes := make([]ast.Node, 0)
-	nodes = append(nodes, p.parseIdentifier()) // blah
+func (p *parser) parsePrintExpression(lparen token.Pos) *ast.PrintExpr {
+	pe := new(ast.PrintExpr)
+	pe.LParen = lparen
+	pe.Nodes = make([]ast.Node, 0)
 	p.next()
-	var n ast.Node
 	for p.tok != token.RPAREN {
+		var n ast.Node
 		switch p.tok {
 		case token.LPAREN:
 			var err *perror
@@ -216,34 +213,31 @@ func (p *parser) parsePrintExpression() []ast.Node {
 		case token.NUMBER:
 			n = p.parseNumber()
 		case token.IDENT:
-			//if n = p.curScope.Lookup(p.lit); n == nil {
-			//p.file.AddError(p.pos, "Undeclared identifier:", p.lit)
-			//}
 			n = p.parseIdentifier()
 		default:
 			p.file.AddError(p.pos, "Invalid argument to print: ", p.lit)
+			break
 		}
-		//p.curScope.Nodes = append(p.curScope.Nodes, n)
-		nodes = append(nodes, n)
+		pe.Nodes = append(pe.Nodes, n)
 		p.next()
 	}
-	//if p.tok != token.RPAREN {
-	//p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
-	//}
-	return nodes
+	if p.tok != token.RPAREN {
+		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
+	}
+	pe.RParen = p.pos
+	return pe
 }
 
-func (p *parser) parseSetExpression() []ast.Node {
+func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
+	se := new(ast.SetExpr)
+	se.LParen = lparen
 	// eventually expand this for multiple assignment
-	nodes := make([]ast.Node, 0)
-	nodes = append(nodes, p.parseIdentifier()) // blah
 	p.next()
 	if p.tok != token.IDENT {
 		p.file.AddError(p.pos, "First argument to set must be an identifier")
 		return nil
 	}
-	i := p.parseIdentifier()
-	nodes = append(nodes, i)
+	se.Name = p.parseIdentifier().Lit
 	p.next()
 	var n ast.Node
 	switch p.tok {
@@ -261,12 +255,13 @@ func (p *parser) parseSetExpression() []ast.Node {
 		}*/
 		n = p.parseIdentifier()
 	}
+	se.Value = n
 	p.next()
 	if p.tok != token.RPAREN {
 		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
 	}
-	nodes = append(nodes, n)
-	return nodes
+	se.RParen = p.pos
+	return se
 }
 
 func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {

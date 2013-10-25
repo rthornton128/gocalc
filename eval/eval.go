@@ -8,20 +8,18 @@ import (
 )
 
 var builtins = map[string]func([]interface{}) interface{}{
-	"+":     funcAdd,
-	"-":     funcSub,
-	"*":     funcMul,
-	"/":     funcDiv,
-	"%":     funcMod,
-	"=":     funcEq,
-	"<":     funcLess,
-	"<=":    funcLessEq,
-	">":     funcGreater,
-	">=":    funcGreaterEq,
-	"<>":    funcNotEq,
-	"if":    funcIf,
-	"print": funcPrint,
-	"set":   funcSet,
+	"+":  funcAdd,
+	"-":  funcSub,
+	"*":  funcMul,
+	"/":  funcDiv,
+	"%":  funcMod,
+	"=":  funcEq,
+	"<":  funcLess,
+	"<=": funcLessEq,
+	">":  funcGreater,
+	">=": funcGreaterEq,
+	"<>": funcNotEq,
+	"if": funcIf,
 }
 
 var variables = map[string]interface{}{}
@@ -38,7 +36,8 @@ func EvalFile(fname, expr string) interface{} {
 		f.PrintErrors()
 		return nil
 	}
-	res := eval(f, n)
+	e := &evaluator{file: f, scope: n.Scope}
+	res := e.eval(n)
 	if f.NumErrors() > 0 {
 		f.PrintErrors()
 		return nil
@@ -46,15 +45,20 @@ func EvalFile(fname, expr string) interface{} {
 	return res
 }
 
-func eval(f *token.File, n ast.Node) interface{} {
+type evaluator struct {
+	file  *token.File
+	scope *ast.Scope // current scope
+}
+
+func (e *evaluator) eval(n ast.Node) interface{} {
 	switch node := n.(type) {
 	case *ast.File:
 		var x interface{}
 		for _, n := range node.Nodes {
-			x = eval(f, n) // scoping seems like it should come into play here
+			x = e.eval(n) // scoping seems like it should come into play here
 			switch t := x.(type) {
 			case *ast.Identifier:
-				f.AddError(t.Pos(), "Unknown identifier: ", t.Lit)
+				e.file.AddError(t.Pos(), "Unknown identifier: ", t.Lit)
 				return nil
 			}
 		}
@@ -74,23 +78,18 @@ func eval(f *token.File, n ast.Node) interface{} {
 	case *ast.Number:
 		return node.Val
 	case *ast.Operator:
-		// technically, it should be impossible for this to fail. If it does,
-		// it should be a catistrophic error (like the panic that will be
-		// produced) because Operators are only ever built-in functions. It
-		// should be impossible for the scanner to scan something as an operator
-		// if it's not a built-in.
 		return builtins[node.Val]
 	case *ast.DefineExpr:
-		// I can now circumvent the generic function prototype and build a
-		// custom function to deal with this node
-		evalDefineExpr(f, node)
+		e.evalDefineExpr(node)
+		return nil
+	case *ast.PrintExpr:
+		e.evalPrintExpr(node)
+		return nil
+	case *ast.SetExpr:
+		e.evalSetExpr(node)
 		return nil
 	case *ast.Expression:
 		//fmt.Println(node.Nodes)
-		if len(node.Nodes) < 1 {
-			f.AddError(node.Pos(), "Empty expression not allowed")
-			return nil
-		}
 		// Ya...this section is an utter mess but it's an attempt to get a
 		// callable function working without scoping. It works but it's ugly
 		// as hell
@@ -103,30 +102,30 @@ func eval(f *token.File, n ast.Node) interface{} {
 				//fmt.Println("function")
 				// and...here's the problem. What variables belong to the function?
 				if len(node.Nodes) > 1 {
-					variables["x"] = eval(f, node.Nodes[1])
+					variables["x"] = e.eval(node.Nodes[1])
 				}
-				return eval(f, fn)
+				return e.eval(fn)
 			}
 			//fmt.Println("not a function")
 		}
-		fn, ok := eval(f, node.Nodes[0]).(func([]interface{}) interface{})
+		fn, ok := e.eval(node.Nodes[0]).(func([]interface{}) interface{})
 		if !ok {
-			f.AddError(node.Nodes[0].Pos(), "First element of an expression must "+
-				"be a function.")
+			e.file.AddError(node.Nodes[0].Pos(), "First element of an expression "+
+				"must be a function.")
 			return nil
 		}
 		//fmt.Println("building args list")
 		args := make([]interface{}, 0) //len(node.Nodes[1:]))
 		if len(node.Nodes) > 1 {
 			for _, node := range node.Nodes[1:] {
-				args = append(args, eval(f, node))
+				args = append(args, e.eval(node))
 			}
 		}
 		//fmt.Println("calling fn with", len(args), "args")
 
 		res := fn(args)
 		if err, ok := res.(error); ok {
-			f.AddError(node.Pos(), err)
+			e.file.AddError(node.Pos(), err)
 		}
 		//fmt.Println("res:", res)
 		return res
@@ -134,31 +133,23 @@ func eval(f *token.File, n ast.Node) interface{} {
 	return nil
 }
 
-func evalDefineExpr(f *token.File, d *ast.DefineExpr) {
+func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
 	functions[d.Name] = d.Impl
 	for _, arg := range d.Args {
 		variables[arg] = nil
 	}
 }
 
-func funcAdd(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a + b }, args)
+func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
+	args := make([]interface{}, len(p.Nodes))
+	for i, n := range p.Nodes {
+		args[i] = e.eval(n)
+	}
+	fmt.Println(args...)
 }
 
-func funcSub(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a - b }, args)
-}
-
-func funcMul(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a * b }, args)
-}
-
-func funcDiv(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a / b }, args)
-}
-
-func funcMod(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a % b }, args)
+func (e *evaluator) evalSetExpr(s *ast.SetExpr) {
+	variables[s.Name] = e.eval(s.Value)
 }
 
 func genFunc(fn func(a, b int) int, args []interface{}) interface{} {
@@ -188,6 +179,33 @@ func genFunc(fn func(a, b int) int, args []interface{}) interface{} {
 	return res
 }
 
+func convBool(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func funcAdd(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return a + b }, args)
+}
+
+func funcSub(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return a - b }, args)
+}
+
+func funcMul(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return a * b }, args)
+}
+
+func funcDiv(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return a / b }, args)
+}
+
+func funcMod(args []interface{}) interface{} {
+	return genFunc(func(a, b int) int { return a % b }, args)
+}
+
 func funcEq(args []interface{}) interface{} {
 	return genFunc(func(a, b int) int { return convBool(a == b) }, args)
 }
@@ -212,13 +230,6 @@ func funcNotEq(args []interface{}) interface{} {
 	return genFunc(func(a, b int) int { return convBool(a != b) }, args)
 }
 
-func convBool(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 func funcIf(args []interface{}) interface{} {
 	if len(args) != 3 {
 		return nil //should produce error
@@ -230,27 +241,4 @@ func funcIf(args []interface{}) interface{} {
 		return args[1]
 	}
 	return nil // also an error
-}
-
-func funcPrint(args []interface{}) interface{} {
-	// some checks should be done on the args. For example, this current
-	// implementation will return the address of a built-in function if
-	// given as an argument.
-	fmt.Println(args...)
-	return nil
-}
-
-func funcSet(args []interface{}) interface{} {
-	if len(args) != 2 {
-		return nil // really feel like this should be an error...not just nil
-	}
-	if i, ok := args[0].(*ast.Identifier); ok {
-		switch args[1].(type) {
-		case *ast.Operator:
-			return nil // this REALLY should produce an error...
-		default:
-			variables[i.Lit] = args[1]
-		}
-	}
-	return nil
 }
