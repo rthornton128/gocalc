@@ -28,14 +28,18 @@ type (
 		Nodes  []Node
 		Scope  *Scope
 	}
+	DefineExpr struct {
+		LParen token.Pos
+		RParen token.Pos
+		Name   string
+		Args   []string
+		Impl   Node
+	}
 	File struct {
 		pos   token.Pos
 		end   token.Pos
 		Nodes []Node
 		Scope *Scope
-	}
-	PrintExpr struct {
-		*Expression
 	}
 	Scope struct {
 		defs map[string]Node
@@ -56,8 +60,8 @@ func (o *Operator) End() token.Pos { return o.Opr + 1 }
 func (e *Expression) Pos() token.Pos { return e.LParen }
 func (e *Expression) End() token.Pos { return e.RParen }
 
-//func (p *PrintExpr) Pos() token.Pos { return p.Prnt }
-//func (p *PrintExpr) End() token.Pos { return p.Prnt + 5 } // derp
+func (d *DefineExpr) Pos() token.Pos { return d.LParen }
+func (d *DefineExpr) End() token.Pos { return d.RParen }
 
 func NewFile(beg, end token.Pos) *File {
 	return &File{beg, end, make([]Node, 0), NewScope(nil)}

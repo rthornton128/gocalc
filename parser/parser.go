@@ -108,7 +108,7 @@ func (p *parser) parse() (ast.Node, *perror) {
 	return n, nil // eofError
 }
 
-func (p *parser) parseExpression() (*ast.Expression, *perror) {
+func (p *parser) parseExpression() (ast.Node, *perror) {
 	// an lparen was found. scan until an rparen found. determine expression
 	// type: define (arg list, body), if, print and set expressions or
 	// a typical math expression (operator).
@@ -129,8 +129,9 @@ func (p *parser) parseExpression() (*ast.Expression, *perror) {
 		p.file.AddError(p.pos, "Parse: Empty expression not allowed.")
 		return nil, nil
 	case token.DEFINE:
-		e.Nodes = p.parseDefineExpression()
-		open = false
+		return p.parseDefineExpression(e.LParen), nil
+		//e.Nodes = p.parseDefineExpression()
+		//open = false
 	case token.PRINT:
 		e.Nodes = p.parsePrintExpression()
 		open = false
@@ -171,6 +172,24 @@ func (p *parser) parseExpression() (*ast.Expression, *perror) {
 
 func (p *parser) parseIdentifier() *ast.Identifier {
 	return &ast.Identifier{p.pos, p.lit}
+}
+
+func (p *parser) parseIdentifierList() *ast.Expression {
+	e := new(ast.Expression)
+	e.LParen = p.pos
+	e.Nodes = make([]ast.Node, 0)
+	p.next()
+	for p.tok == token.IDENT {
+		e.Nodes = append(e.Nodes, p.parseIdentifier())
+		p.next()
+	}
+	if p.tok != token.RPAREN {
+		p.file.AddError(p.pos, "Expected identifier or rparen, got: ", p.lit)
+		return nil
+	}
+	e.RParen = p.pos
+	p.next()
+	return e
 }
 
 func (p *parser) parseNumber() *ast.Number {
@@ -250,37 +269,48 @@ func (p *parser) parseSetExpression() []ast.Node {
 	return nodes
 }
 
-func (p *parser) parseDefineExpression() []ast.Node {
-	nodes := make([]ast.Node, 0)
-	nodes = append(nodes, p.parseIdentifier()) // blah
+func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
+	d := new(ast.DefineExpr)
+	d.LParen = lparen
+	//d.Decl = make([]ast.Node, 1)
+	d.Args = make([]string, 0)
+	d.Impl = new(ast.Expression)
+	//d.Decl = append(d.Decl, p.parseIdentifier()) // blah
 	p.next()
 	var n ast.Node
 	switch p.tok {
 	case token.LPAREN:
-		//n = parseIdentifierList()
+		e := p.parseIdentifierList()
+		l := e.Nodes
+		d.Name = l[0].(*ast.Identifier).Lit
+		l = l[1:]
+		for _, v := range l {
+			d.Args = append(d.Args, v.(*ast.Identifier).Lit)
+		}
 	case token.IDENT:
-		n = p.parseIdentifier()
+		d.Name = p.parseIdentifier().Lit
+		p.next()
 	default:
 		p.file.AddError(p.pos, "Expected identifier(s) but got: ", p.lit)
 		return nil
 	}
-	nodes = append(nodes, n)
-	p.next()
+	//d.Decl = append(d.Decl, n)
+	//p.next()
 	if p.tok != token.LPAREN {
 		p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
 		return nil
 	}
 	var err *perror
-	n, err = p.parse()
+	n, err = p.parseExpression()
 	if err != nil {
 		p.file.AddError(err.pos, err.msg)
 		return nil
 	}
-	nodes = append(nodes, n)
+	d.Impl = n
 	p.next()
 	if p.tok != token.RPAREN {
 		p.file.AddError(p.pos, "Expected closing paren but got: ", p.lit)
 		return nil
 	}
-	return nodes
+	return d
 }

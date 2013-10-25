@@ -8,25 +8,24 @@ import (
 )
 
 var builtins = map[string]func([]interface{}) interface{}{
-	"+":      funcAdd,
-	"-":      funcSub,
-	"*":      funcMul,
-	"/":      funcDiv,
-	"%":      funcMod,
-	"=":      funcEq,
-	"<":      funcLess,
-	"<=":     funcLessEq,
-	">":      funcGreater,
-	">=":     funcGreaterEq,
-	"<>":     funcNotEq,
-	"define": funcDefine,
-	"if":     funcIf,
-	"print":  funcPrint,
-	"set":    funcSet,
+	"+":     funcAdd,
+	"-":     funcSub,
+	"*":     funcMul,
+	"/":     funcDiv,
+	"%":     funcMod,
+	"=":     funcEq,
+	"<":     funcLess,
+	"<=":    funcLessEq,
+	">":     funcGreater,
+	">=":    funcGreaterEq,
+	"<>":    funcNotEq,
+	"if":    funcIf,
+	"print": funcPrint,
+	"set":   funcSet,
 }
 
 var variables = map[string]interface{}{}
-var functions = map[string]func([]interface{}) interface{}{}
+var functions = map[string]ast.Node{}
 
 func EvalExpr(expr string) interface{} {
 	return EvalFile("", expr)
@@ -80,12 +79,35 @@ func eval(f *token.File, n ast.Node) interface{} {
 		// produced) because Operators are only ever built-in functions. It
 		// should be impossible for the scanner to scan something as an operator
 		// if it's not a built-in.
-		return builtins[string(node.Val)]
+		return builtins[node.Val]
+	case *ast.DefineExpr:
+		// I can now circumvent the generic function prototype and build a
+		// custom function to deal with this node
+		evalDefineExpr(f, node)
+		return nil
 	case *ast.Expression:
 		//fmt.Println(node.Nodes)
 		if len(node.Nodes) < 1 {
 			f.AddError(node.Pos(), "Empty expression not allowed")
 			return nil
+		}
+		// Ya...this section is an utter mess but it's an attempt to get a
+		// callable function working without scoping. It works but it's ugly
+		// as hell
+		x := node.Nodes[0]
+		if i, ok := x.(*ast.Identifier); ok {
+			//fmt.Println("ident:", i)
+			var ok bool
+			var fn ast.Node
+			if fn, ok = functions[i.Lit]; ok {
+				//fmt.Println("function")
+				// and...here's the problem. What variables belong to the function?
+				if len(node.Nodes) > 1 {
+					variables["x"] = eval(f, node.Nodes[1])
+				}
+				return eval(f, fn)
+			}
+			//fmt.Println("not a function")
 		}
 		fn, ok := eval(f, node.Nodes[0]).(func([]interface{}) interface{})
 		if !ok {
@@ -110,6 +132,13 @@ func eval(f *token.File, n ast.Node) interface{} {
 		return res
 	}
 	return nil
+}
+
+func evalDefineExpr(f *token.File, d *ast.DefineExpr) {
+	functions[d.Name] = d.Impl
+	for _, arg := range d.Args {
+		variables[arg] = nil
+	}
 }
 
 func funcAdd(args []interface{}) interface{} {
@@ -188,27 +217,6 @@ func convBool(b bool) int {
 		return 1
 	}
 	return 0
-}
-
-func funcDefine(args []interface{}) interface{} {
-	//fmt.Println("define")
-	if len(args) != 2 {
-		return nil // really feel like this should be an error...not just nil
-	}
-	if i, ok := args[0].(*ast.Identifier); ok {
-		switch args[1].(type) {
-		case *ast.Operator:
-			return nil // this REALLY should produce an error...
-		default:
-			//fmt.Println("adding", i.Lit, "to variables list:", args[1])
-			r := args[1]
-			functions[i.Lit] = func(args []interface{}) interface{} {
-				//fmt.Printf("executing function...%v\n", r)
-				return r
-			}
-		}
-	}
-	return nil
 }
 
 func funcIf(args []interface{}) interface{} {

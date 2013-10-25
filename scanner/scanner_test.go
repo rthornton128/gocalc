@@ -44,7 +44,7 @@ func TestScannerScan(t *testing.T) {
 		},
 		{
 			"(set A_Variable 123)",
-			[]token.Token{token.LPAREN, token.IDENT, token.IDENT, token.NUMBER,
+			[]token.Token{token.LPAREN, token.SET, token.IDENT, token.NUMBER,
 				token.RPAREN},
 			[]token.Pos{0, 1, 5, 16, 19}, []string{"(", "set", "A_Variable", "123",
 				")"},
