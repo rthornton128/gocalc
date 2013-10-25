@@ -28,6 +28,7 @@ const (
 	lit_end
 
 	key_start
+	DEFINE
 	IF
 	PRINT
 	SET
@@ -35,9 +36,10 @@ const (
 )
 
 var tokens = map[string]Token{
-	"if":    IF,
-	"print": PRINT,
-	"set":   SET,
+	"define": DEFINE,
+	"if":     IF,
+	"print":  PRINT,
+	"set":    SET,
 }
 
 func Lookup(ident string) Token {

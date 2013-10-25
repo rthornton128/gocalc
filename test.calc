@@ -8,6 +8,9 @@
 ;((+ 2 3))
 ;()
 
+(define f (+ 2 3))
+(print (f))
+
 ;(set +)
 (set a (- 5 2))
 (print a)

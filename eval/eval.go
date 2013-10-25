@@ -8,23 +8,25 @@ import (
 )
 
 var builtins = map[string]func([]interface{}) interface{}{
-	"+":     funcAdd,
-	"-":     funcSub,
-	"*":     funcMul,
-	"/":     funcDiv,
-	"%":     funcMod,
-	"=":     funcEq,
-	"<":     funcLess,
-	"<=":    funcLessEq,
-	">":     funcGreater,
-	">=":    funcGreaterEq,
-	"<>":    funcNotEq,
-	"if":    funcIf,
-	"print": funcPrint,
-	"set":   funcSet,
+	"+":      funcAdd,
+	"-":      funcSub,
+	"*":      funcMul,
+	"/":      funcDiv,
+	"%":      funcMod,
+	"=":      funcEq,
+	"<":      funcLess,
+	"<=":     funcLessEq,
+	">":      funcGreater,
+	">=":     funcGreaterEq,
+	"<>":     funcNotEq,
+	"define": funcDefine,
+	"if":     funcIf,
+	"print":  funcPrint,
+	"set":    funcSet,
 }
 
 var variables = map[string]interface{}{}
+var functions = map[string]func([]interface{}) interface{}{}
 
 func EvalExpr(expr string) interface{} {
 	return EvalFile("", expr)
@@ -62,6 +64,10 @@ func eval(f *token.File, n ast.Node) interface{} {
 		if fn, ok := builtins[node.Lit]; ok {
 			return fn
 		}
+		if fn, ok := functions[node.Lit]; ok {
+			//fmt.Println("found something for:", node.Lit)
+			return fn
+		}
 		if n, ok := variables[node.Lit]; ok {
 			return n
 		}
@@ -87,9 +93,12 @@ func eval(f *token.File, n ast.Node) interface{} {
 				"be a function.")
 			return nil
 		}
-		args := make([]interface{}, len(node.Nodes[1:]))
-		for i, node := range node.Nodes[1:] {
-			args[i] = eval(f, node)
+		//fmt.Println("building args list")
+		args := make([]interface{}, 0) //len(node.Nodes[1:]))
+		if len(node.Nodes) > 1 {
+			for _, node := range node.Nodes[1:] {
+				args = append(args, eval(f, node))
+			}
 		}
 		//fmt.Println("calling fn with", len(args), "args")
 
@@ -97,6 +106,7 @@ func eval(f *token.File, n ast.Node) interface{} {
 		if err, ok := res.(error); ok {
 			f.AddError(node.Pos(), err)
 		}
+		//fmt.Println("res:", res)
 		return res
 	}
 	return nil
@@ -178,6 +188,27 @@ func convBool(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+func funcDefine(args []interface{}) interface{} {
+	//fmt.Println("define")
+	if len(args) != 2 {
+		return nil // really feel like this should be an error...not just nil
+	}
+	if i, ok := args[0].(*ast.Identifier); ok {
+		switch args[1].(type) {
+		case *ast.Operator:
+			return nil // this REALLY should produce an error...
+		default:
+			//fmt.Println("adding", i.Lit, "to variables list:", args[1])
+			r := args[1]
+			functions[i.Lit] = func(args []interface{}) interface{} {
+				//fmt.Printf("executing function...%v\n", r)
+				return r
+			}
+		}
+	}
+	return nil
 }
 
 func funcIf(args []interface{}) interface{} {
