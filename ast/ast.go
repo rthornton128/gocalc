@@ -29,22 +29,25 @@ type (
 		Scope  *Scope // TODO: remove me?
 	}
 	DefineExpr struct {
-		LParen token.Pos
-		RParen token.Pos
-		Name   string
-		Args   []string
-		Impl   Node // TODO: not just any old node allowed, expressions only
+		Expression
+		Name string
+		Args []string
+		Impl Node // TODO: not just any old node allowed, expressions only
+	}
+	IfExpr struct {
+		Expression
+		Comp Node
+		Then Node
+		Else Node
 	}
 	PrintExpr struct {
-		LParen token.Pos
-		RParen token.Pos
-		Nodes  []Node
+		Expression
+		Nodes []Node
 	}
 	SetExpr struct {
-		LParen token.Pos
-		RParen token.Pos
-		Name   string
-		Value  Node
+		Expression
+		Name  string
+		Value Node
 	}
 	File struct {
 		pos   token.Pos
@@ -70,15 +73,6 @@ func (o *Operator) End() token.Pos { return o.Opr + 1 }
 
 func (e *Expression) Pos() token.Pos { return e.LParen }
 func (e *Expression) End() token.Pos { return e.RParen }
-
-func (d *DefineExpr) Pos() token.Pos { return d.LParen }
-func (d *DefineExpr) End() token.Pos { return d.RParen }
-
-func (p *PrintExpr) Pos() token.Pos { return p.LParen }
-func (p *PrintExpr) End() token.Pos { return p.RParen }
-
-func (s *SetExpr) Pos() token.Pos { return s.LParen }
-func (s *SetExpr) End() token.Pos { return s.RParen }
 
 func NewFile(beg, end token.Pos) *File {
 	return &File{beg, end, make([]Node, 0), NewScope(nil)}

@@ -19,7 +19,6 @@ var builtins = map[string]func([]interface{}) interface{}{
 	">":  funcGreater,
 	">=": funcGreaterEq,
 	"<>": funcNotEq,
-	"if": funcIf,
 }
 
 var variables = map[string]interface{}{}
@@ -51,6 +50,9 @@ type evaluator struct {
 }
 
 func (e *evaluator) eval(n ast.Node) interface{} {
+	if n == nil {
+		return nil
+	}
 	switch node := n.(type) {
 	case *ast.File:
 		var x interface{}
@@ -82,6 +84,8 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 	case *ast.DefineExpr:
 		e.evalDefineExpr(node)
 		return nil
+	case *ast.IfExpr:
+		return e.evalIfExpr(node)
 	case *ast.PrintExpr:
 		e.evalPrintExpr(node)
 		return nil
@@ -89,6 +93,7 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 		e.evalSetExpr(node)
 		return nil
 	case *ast.Expression:
+		//fmt.Println("expression called")
 		//fmt.Println(node.Nodes)
 		// Ya...this section is an utter mess but it's an attempt to get a
 		// callable function working without scoping. It works but it's ugly
@@ -138,6 +143,15 @@ func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
 	for _, arg := range d.Args {
 		variables[arg] = nil
 	}
+}
+
+func (e *evaluator) evalIfExpr(i *ast.IfExpr) interface{} {
+	x := 0 // default to false
+	x, _ = e.eval(i.Comp).(int)
+	if x > 1 {
+		return e.eval(i.Then)
+	}
+	return e.eval(i.Else) // returns nil if no else clause
 }
 
 func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
@@ -228,17 +242,4 @@ func funcGreaterEq(args []interface{}) interface{} {
 
 func funcNotEq(args []interface{}) interface{} {
 	return genFunc(func(a, b int) int { return convBool(a != b) }, args)
-}
-
-func funcIf(args []interface{}) interface{} {
-	if len(args) != 3 {
-		return nil //should produce error
-	}
-	if eq, ok := args[0].(int); ok {
-		if eq == 0 {
-			return args[2]
-		}
-		return args[1]
-	}
-	return nil // also an error
 }

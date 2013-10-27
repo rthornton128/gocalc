@@ -87,7 +87,7 @@ func (p *parser) parse() (ast.Node, *perror) {
 	case token.ADD, token.SUB, token.MUL, token.DIV, token.MOD, token.LT,
 		token.LTE, token.GT, token.GTE, token.EQ, token.NEQ:
 		n = &ast.Operator{p.pos, p.lit}
-	case token.IDENT, token.IF: // temporary
+	case token.IDENT:
 		n = p.parseIdentifier()
 	case token.NUMBER:
 		n = p.parseNumber()
@@ -130,6 +130,8 @@ func (p *parser) parseExpression() (ast.Node, *perror) {
 		return nil, nil
 	case token.DEFINE:
 		return p.parseDefineExpression(e.LParen), nil
+	case token.IF:
+		return p.parseIfExpression(e.LParen), nil
 	case token.PRINT:
 		return p.parsePrintExpression(e.LParen), nil
 	case token.SET:
@@ -196,30 +198,56 @@ func (p *parser) parseNumber() *ast.Number {
 	return &ast.Number{p.pos, p.lit, int(i)}
 }
 
+func (p *parser) parseSubExpression() ast.Node {
+	for p.tok == token.COMMENT {
+		p.next()
+	}
+	var n ast.Node
+	switch p.tok {
+	case token.IDENT:
+		n = p.parseIdentifier()
+	case token.LPAREN:
+		n, _ = p.parseExpression()
+	case token.NUMBER:
+		n = p.parseNumber()
+	default:
+		p.file.AddError(p.pos, "Unexpected token: ", p.lit)
+		n = nil
+	}
+	p.next()
+	return n
+}
+
+func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
+	ie := new(ast.IfExpr)
+	ie.LParen, ie.Else = lparen, nil
+	p.next()
+	ie.Comp = p.parseSubExpression()
+	ie.Then = p.parseSubExpression()
+	if p.tok == token.RPAREN {
+		ie.Else = nil
+		ie.RParen = p.pos
+		return ie
+	}
+	ie.Else = p.parseSubExpression()
+	if p.tok != token.RPAREN {
+		p.file.AddError(p.pos, "Expected closing paren, got: ", p.lit)
+		return nil
+	}
+	ie.RParen = p.pos
+	if ie.Comp == nil || ie.Then == nil {
+		return nil
+	}
+	return ie
+}
+
 func (p *parser) parsePrintExpression(lparen token.Pos) *ast.PrintExpr {
 	pe := new(ast.PrintExpr)
 	pe.LParen = lparen
 	pe.Nodes = make([]ast.Node, 0)
 	p.next()
 	for p.tok != token.RPAREN {
-		var n ast.Node
-		switch p.tok {
-		case token.LPAREN:
-			var err *perror
-			n, err = p.parseExpression()
-			if err != nil {
-				p.file.AddError(err.pos, err.msg)
-			}
-		case token.NUMBER:
-			n = p.parseNumber()
-		case token.IDENT:
-			n = p.parseIdentifier()
-		default:
-			p.file.AddError(p.pos, "Invalid argument to print: ", p.lit)
-			break
-		}
-		pe.Nodes = append(pe.Nodes, n)
-		p.next()
+		pe.Nodes = append(pe.Nodes, p.parseSubExpression())
 	}
 	if p.tok != token.RPAREN {
 		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
@@ -239,24 +267,7 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 	}
 	se.Name = p.parseIdentifier().Lit
 	p.next()
-	var n ast.Node
-	switch p.tok {
-	case token.LPAREN:
-		var err *perror
-		n, err = p.parseExpression() // should really be parseMath?Expr()
-		if err != nil {
-			p.file.AddError(err.pos, err.msg)
-		}
-	case token.NUMBER:
-		n = p.parseNumber()
-	case token.IDENT:
-		/*if p.curScope.Lookup(p.lit) == nil {
-			p.file.AddError(p.pos, "Undeclared identifier:", p.lit)
-		}*/
-		n = p.parseIdentifier()
-	}
-	se.Value = n
-	p.next()
+	se.Value = p.parseSubExpression()
 	if p.tok != token.RPAREN {
 		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
 	}
@@ -267,10 +278,8 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	d := new(ast.DefineExpr)
 	d.LParen = lparen
-	//d.Decl = make([]ast.Node, 1)
 	d.Args = make([]string, 0)
 	d.Impl = new(ast.Expression)
-	//d.Decl = append(d.Decl, p.parseIdentifier()) // blah
 	p.next()
 	var n ast.Node
 	switch p.tok {
@@ -289,8 +298,6 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		p.file.AddError(p.pos, "Expected identifier(s) but got: ", p.lit)
 		return nil
 	}
-	//d.Decl = append(d.Decl, n)
-	//p.next()
 	if p.tok != token.LPAREN {
 		p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
 		return nil

@@ -15,7 +15,7 @@ func stripCR(in []byte) []byte {
 	out := make([]byte, len(in))
 	i := 0
 	for _, ch := range in {
-		if ch != '\r'{
+		if ch != '\r' {
 			out[i] = ch
 			i++
 		}
