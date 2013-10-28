@@ -26,19 +26,31 @@ type (
 		LParen token.Pos
 		RParen token.Pos
 		Nodes  []Node
-		Scope  *Scope // TODO: remove me?
+		//Scope  *Scope // TODO: remove me?
+	}
+	CompExpr struct {
+		Expression
+		CompLit string
+		A       Node
+		B       Node
 	}
 	DefineExpr struct {
 		Expression
-		Name string
-		Args []string
-		Impl Node // TODO: not just any old node allowed, expressions only
+		Scope *Scope
+		Name  string
+		Args  []string // TODO: remove
+		Impl  Node     // TODO: not just any old node allowed, expressions only
 	}
 	IfExpr struct {
 		Expression
-		Comp Node
+		Comp Node // predicate
 		Then Node
 		Else Node
+	}
+	MathExpr struct {
+		Expression
+		OpLit    string
+		ExprList []Node
 	}
 	PrintExpr struct {
 		Expression
@@ -48,6 +60,11 @@ type (
 		Expression
 		Name  string
 		Value Node
+	}
+	UserExpr struct {
+		Expression
+		Name  string
+		Nodes []Node
 	}
 	File struct {
 		pos   token.Pos

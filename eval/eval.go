@@ -7,23 +7,6 @@ import (
 	"misc/calc/token"
 )
 
-var builtins = map[string]func([]interface{}) interface{}{
-	"+":  funcAdd,
-	"-":  funcSub,
-	"*":  funcMul,
-	"/":  funcDiv,
-	"%":  funcMod,
-	"=":  funcEq,
-	"<":  funcLess,
-	"<=": funcLessEq,
-	">":  funcGreater,
-	">=": funcGreaterEq,
-	"<>": funcNotEq,
-}
-
-var variables = map[string]interface{}{}
-var functions = map[string]ast.Node{}
-
 func EvalExpr(expr string) interface{} {
 	return EvalFile("", expr)
 }
@@ -54,6 +37,8 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 		return nil
 	}
 	switch node := n.(type) {
+	case *ast.CompExpr:
+		return e.evalCompExpr(node)
 	case *ast.File:
 		var x interface{}
 		for _, n := range node.Nodes {
@@ -66,92 +51,109 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 		}
 		return x
 	case *ast.Identifier:
-		if fn, ok := builtins[node.Lit]; ok {
-			return fn
+		var n ast.Node
+		//fmt.Println("Looking up:", node.Lit)
+		n = e.scope.Lookup(node.Lit)
+		if n != nil {
+			return e.eval(n)
 		}
-		if fn, ok := functions[node.Lit]; ok {
-			//fmt.Println("found something for:", node.Lit)
-			return fn
-		}
-		if n, ok := variables[node.Lit]; ok {
-			return n
-		}
-		return node
-	case *ast.Number:
-		return node.Val
-	case *ast.Operator:
-		return builtins[node.Val]
-	case *ast.DefineExpr:
-		e.evalDefineExpr(node)
 		return nil
 	case *ast.IfExpr:
 		return e.evalIfExpr(node)
+	case *ast.MathExpr:
+		return e.evalMathExpr(node)
+	case *ast.Number:
+		return node.Val
+	case *ast.DefineExpr:
+		e.evalDefineExpr(node)
+		return nil
 	case *ast.PrintExpr:
 		e.evalPrintExpr(node)
 		return nil
 	case *ast.SetExpr:
 		e.evalSetExpr(node)
 		return nil
-	case *ast.Expression:
-		//fmt.Println("expression called")
-		//fmt.Println(node.Nodes)
-		// Ya...this section is an utter mess but it's an attempt to get a
-		// callable function working without scoping. It works but it's ugly
-		// as hell
-		x := node.Nodes[0]
-		if i, ok := x.(*ast.Identifier); ok {
-			//fmt.Println("ident:", i)
-			var ok bool
-			var fn ast.Node
-			if fn, ok = functions[i.Lit]; ok {
-				//fmt.Println("function")
-				// and...here's the problem. What variables belong to the function?
-				if len(node.Nodes) > 1 {
-					variables["x"] = e.eval(node.Nodes[1])
-				}
-				return e.eval(fn)
-			}
-			//fmt.Println("not a function")
-		}
-		fn, ok := e.eval(node.Nodes[0]).(func([]interface{}) interface{})
-		if !ok {
-			e.file.AddError(node.Nodes[0].Pos(), "First element of an expression "+
-				"must be a function.")
-			return nil
-		}
-		//fmt.Println("building args list")
-		args := make([]interface{}, 0) //len(node.Nodes[1:]))
-		if len(node.Nodes) > 1 {
-			for _, node := range node.Nodes[1:] {
-				args = append(args, e.eval(node))
-			}
-		}
-		//fmt.Println("calling fn with", len(args), "args")
-
-		res := fn(args)
-		if err, ok := res.(error); ok {
-			e.file.AddError(node.Pos(), err)
-		}
-		//fmt.Println("res:", res)
-		return res
+	case *ast.UserExpr:
+		return e.evalUserExpr(node)
 	}
 	return nil
 }
 
-func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
-	functions[d.Name] = d.Impl
-	for _, arg := range d.Args {
-		variables[arg] = nil
+func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
+	a, aok := e.eval(ce.A).(int)
+	b, bok := e.eval(ce.B).(int)
+	if !aok || !bok {
+		return 0
 	}
+	switch ce.CompLit {
+	case "<":
+		return convBool(a < b)
+	case "<=":
+		return convBool(a <= b)
+	case "<>":
+		return convBool(a != b)
+	case ">":
+		return convBool(a > b)
+	case ">=":
+		return convBool(a >= b)
+	case "=":
+		return convBool(a == b)
+	}
+	return 0
+}
+
+func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
+	// TODO: replace with proper scoping code
+	//functions[d.Name] = d.Impl
+	fmt.Print("define ", d.Name, " with args:")
+	e.scope.Insert(d.Name, d.Impl)
+	for _, arg := range d.Args {
+		//variables[arg] = nil
+		fmt.Print(arg)
+		e.scope.Insert(arg, nil)
+	}
+	fmt.Println()
 }
 
 func (e *evaluator) evalIfExpr(i *ast.IfExpr) interface{} {
 	x := 0 // default to false
 	x, _ = e.eval(i.Comp).(int)
-	if x > 1 {
+	if x >= 1 {
 		return e.eval(i.Then)
 	}
 	return e.eval(i.Else) // returns nil if no else clause
+}
+
+func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
+	switch m.OpLit {
+	case "+":
+		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a + b })
+	case "-":
+		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a - b })
+	case "*":
+		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a * b })
+	case "/":
+		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a / b })
+	case "%":
+		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a % b })
+	default:
+		return nil // not reachable (fingers crossed!)
+	}
+}
+
+func (e *evaluator) evalMathFunc(list []ast.Node, fn func(int, int) int) int {
+	a, ok := e.eval(list[0]).(int)
+	if !ok {
+		return 0 // or should this return an error?
+	}
+	for _, n := range list[1:] {
+		b, ok := e.eval(n).(int)
+		if !ok {
+			return 0
+		}
+		a = fn(a, b)
+	}
+	return a
 }
 
 func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
@@ -163,34 +165,7 @@ func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
 }
 
 func (e *evaluator) evalSetExpr(s *ast.SetExpr) {
-	variables[s.Name] = e.eval(s.Value)
-}
-
-func genFunc(fn func(a, b int) int, args []interface{}) interface{} {
-	if len(args) < 1 {
-		return nil
-	}
-	if len(args) < 2 {
-		if i, ok := args[0].(int); ok {
-			return i
-		}
-		return nil
-	}
-	var res int
-	if i, ok := args[0].(int); ok {
-		res = i
-	}
-	for _, x := range args[1:] {
-		switch v := x.(type) {
-		case int:
-			res = fn(res, v)
-		default:
-			// maybe return something like:
-			// errors.New("Function accepts numerical types only, got:", v)
-			return nil
-		}
-	}
-	return res
+	e.scope.Insert(s.Name, s.Value)
 }
 
 func convBool(b bool) int {
@@ -200,46 +175,7 @@ func convBool(b bool) int {
 	return 0
 }
 
-func funcAdd(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a + b }, args)
-}
-
-func funcSub(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a - b }, args)
-}
-
-func funcMul(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a * b }, args)
-}
-
-func funcDiv(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a / b }, args)
-}
-
-func funcMod(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return a % b }, args)
-}
-
-func funcEq(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return convBool(a == b) }, args)
-}
-
-func funcLess(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return convBool(a < b) }, args)
-}
-
-func funcLessEq(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return convBool(a <= b) }, args)
-}
-
-func funcGreater(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return convBool(a > b) }, args)
-}
-
-func funcGreaterEq(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return convBool(a >= b) }, args)
-}
-
-func funcNotEq(args []interface{}) interface{} {
-	return genFunc(func(a, b int) int { return convBool(a != b) }, args)
+func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
+	n := e.scope.Lookup(u.Name)
+	return e.eval(n)
 }

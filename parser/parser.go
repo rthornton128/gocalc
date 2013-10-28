@@ -25,17 +25,7 @@ func ParseFile(f *token.File, str string) *ast.File {
 	p.init(f, str)
 	//p.topScope = root.Scope
 	//p.curScope = root.Scope
-	for n, err := p.parse(); ; n, err = p.parse() {
-		if err != nil {
-			p.file.AddError(err.pos, "Parse: ", err.msg)
-		}
-		if _, ok := n.(*ast.Operator); ok {
-			p.file.AddError(n.Pos(), "Parse: Invalid expression, operator "+
-				"may not be outside of expression")
-		}
-		if n == nil {
-			break
-		}
+	for n := p.parse(); n != nil; n = p.parse() {
 		root.Nodes = append(root.Nodes, n)
 		//p.topScope.Nodes = append(p.topScope.Nodes, n)
 		p.next()
@@ -81,91 +71,111 @@ func (p *parser) next() {
 	//fmt.Println("lit:", p.lit)
 }
 
-func (p *parser) parse() (ast.Node, *perror) {
+func (p *parser) parse() ast.Node {
 	var n ast.Node = nil
 	switch p.tok {
-	case token.ADD, token.SUB, token.MUL, token.DIV, token.MOD, token.LT,
-		token.LTE, token.GT, token.GTE, token.EQ, token.NEQ:
-		n = &ast.Operator{p.pos, p.lit}
 	case token.IDENT:
 		n = p.parseIdentifier()
 	case token.NUMBER:
 		n = p.parseNumber()
 	case token.LPAREN:
-		return p.parseExpression()
-	case token.RPAREN:
-		// this is gradually getting phased out, never fear!
-		// I don't really like this solution...it feels clunky/messy. It's like
-		// using exception handling. Receiving an RPAREN is not an error unless
-		// it's out of place, so treating it like one no matter the situation
-		// seems stupid.
-		return nil, &perror{p.pos, closeError}
+		n = p.parseExpression()
 	case token.COMMENT:
 		// consume comment and move on
 		p.next()
 		return p.parse()
+	case token.EOF:
+		return nil
+	default:
+		p.file.AddError(p.pos, "Unexpected token outside of expression: ", p.lit)
+		return nil
 	}
-	return n, nil // eofError
+	return n
 }
 
-func (p *parser) parseExpression() (ast.Node, *perror) {
-	// an lparen was found. scan until an rparen found. determine expression
-	// type: define (arg list, body), if, print and set expressions or
-	// a typical math expression (operator).
-	open := true
-	e := new(ast.Expression)
-	//e.Scope = ast.NewScope(p.curScope)
-	//p.curScope = e.Scope
-	e.LParen = p.pos
-	//offset := token.Pos(1)
+func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
+	ce := new(ast.CompExpr)
+	ce.LParen = lp
+	ce.CompLit = p.lit
+	p.next()
+	ce.A = p.parseSubExpression()
+	ce.B = p.parseSubExpression()
+	if ce.A == nil || ce.B == nil { // doesn't seem right...
+		p.file.AddError(p.pos, "Some kind of conditional error")
+	}
+	//p.expect(token.RPAREN)
+	if p.tok != token.RPAREN {
+		p.file.AddError(p.pos, "Expected ')', got:", p.lit)
+		return nil
+	}
+	ce.RParen = p.pos
+	return ce
+}
 
+func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
+	d := new(ast.DefineExpr)
+	d.LParen = lparen
+	d.Args = make([]string, 0)  // TODO: remove
+	d.Scope = ast.NewScope(nil) // should be proper parent scope
+	d.Impl = new(ast.Expression)
+	p.next()
+	switch p.tok {
+	case token.LPAREN:
+		e := p.parseIdentifierList()
+		l := e.Nodes
+		d.Name = l[0].(*ast.Identifier).Lit
+		l = l[1:]
+		for _, v := range l {
+			d.Args = append(d.Args, v.(*ast.Identifier).Lit) //TODO: remove
+			d.Scope.Insert(v.(*ast.Identifier).Lit, nil)
+		}
+	case token.IDENT:
+		d.Name = p.parseIdentifier().Lit
+		p.next()
+	default:
+		p.file.AddError(p.pos, "Expected identifier(s) but got: ", p.lit)
+		return nil
+	}
+	if p.tok != token.LPAREN {
+		p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
+		return nil
+	}
+	d.Impl = p.parseExpression()
+	p.next()
+	if p.tok != token.RPAREN {
+		p.file.AddError(p.pos, "Expected closing paren but got: ", p.lit)
+		return nil
+	}
+	return d
+}
+
+func (p *parser) parseExpression() ast.Node {
+	lparen := p.pos
 	p.next()
 	switch p.tok {
 	case token.LPAREN:
 		p.file.AddError(p.pos, "Parse: First element of an expression may not "+
 			"be another expression!")
-		return nil, nil
+		return nil
 	case token.RPAREN:
 		p.file.AddError(p.pos, "Parse: Empty expression not allowed.")
-		return nil, nil
+		return nil
+	case token.LT, token.LTE, token.GT, token.GTE, token.EQ, token.NEQ:
+		return p.parseComparisonExpression(lparen)
+	case token.ADD, token.SUB, token.MUL, token.DIV, token.MOD:
+		return p.parseMathExpression(lparen)
 	case token.DEFINE:
-		return p.parseDefineExpression(e.LParen), nil
+		return p.parseDefineExpression(lparen)
+	case token.IDENT:
+		return p.parseUserExpression(lparen)
 	case token.IF:
-		return p.parseIfExpression(e.LParen), nil
+		return p.parseIfExpression(lparen)
 	case token.PRINT:
-		return p.parsePrintExpression(e.LParen), nil
+		return p.parsePrintExpression(lparen)
 	case token.SET:
-		return p.parseSetExpression(e.LParen), nil
-	default:
-		// actually, I want to remove this section entirely...
-		for {
-			// here is where I could attack scope, rather than during the evaluation
-			// stage. I will need to track the current (inner) scope in p (parser).
-			// I could also make more intelligent decisions about what type of
-			// expression I have rather than trying to resolve it runtime, too. This
-			// could allow me to make better errors and optimizations later on
-
-			n, err := p.parse()
-			if err != nil {
-				if err.msg == closeError {
-					open = false
-					break
-				}
-			}
-
-			if n == nil {
-				break
-			}
-			e.Nodes = append(e.Nodes, n)
-			//offset = n.End() // - n.Pos()
-			p.next()
-		}
+		return p.parseSetExpression(lparen)
 	}
-	if open == true {
-		return nil, &perror{p.pos, openError}
-	}
-	e.RParen = p.pos
-	return e, nil
+	return nil
 }
 
 func (p *parser) parseIdentifier() *ast.Identifier {
@@ -190,34 +200,6 @@ func (p *parser) parseIdentifierList() *ast.Expression {
 	return e
 }
 
-func (p *parser) parseNumber() *ast.Number {
-	i, err := strconv.ParseInt(p.lit, 0, 64)
-	if err != nil {
-		p.file.AddError(p.pos, "Parse:", err)
-	}
-	return &ast.Number{p.pos, p.lit, int(i)}
-}
-
-func (p *parser) parseSubExpression() ast.Node {
-	for p.tok == token.COMMENT {
-		p.next()
-	}
-	var n ast.Node
-	switch p.tok {
-	case token.IDENT:
-		n = p.parseIdentifier()
-	case token.LPAREN:
-		n, _ = p.parseExpression()
-	case token.NUMBER:
-		n = p.parseNumber()
-	default:
-		p.file.AddError(p.pos, "Unexpected token: ", p.lit)
-		n = nil
-	}
-	p.next()
-	return n
-}
-
 func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 	ie := new(ast.IfExpr)
 	ie.LParen, ie.Else = lparen, nil
@@ -239,6 +221,30 @@ func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 		return nil
 	}
 	return ie
+}
+
+func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
+	me := new(ast.MathExpr)
+	me.OpLit = p.lit
+	p.next()
+	for p.tok != token.RPAREN && p.tok != token.EOF {
+		me.ExprList = append(me.ExprList, p.parseSubExpression())
+	}
+	if len(me.ExprList) < 2 {
+		p.file.AddError(p.pos, "Math expressions must have at least 2 arguments")
+		return nil
+	}
+	//me.ExprList = p.parseExpressionList()
+	me.RParen = p.pos
+	return me
+}
+
+func (p *parser) parseNumber() *ast.Number {
+	i, err := strconv.ParseInt(p.lit, 0, 64)
+	if err != nil {
+		p.file.AddError(p.pos, "Parse:", err)
+	}
+	return &ast.Number{p.pos, p.lit, int(i)}
 }
 
 func (p *parser) parsePrintExpression(lparen token.Pos) *ast.PrintExpr {
@@ -275,44 +281,36 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 	return se
 }
 
-func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
-	d := new(ast.DefineExpr)
-	d.LParen = lparen
-	d.Args = make([]string, 0)
-	d.Impl = new(ast.Expression)
-	p.next()
+func (p *parser) parseSubExpression() ast.Node {
+	for p.tok == token.COMMENT {
+		p.next()
+	}
 	var n ast.Node
 	switch p.tok {
-	case token.LPAREN:
-		e := p.parseIdentifierList()
-		l := e.Nodes
-		d.Name = l[0].(*ast.Identifier).Lit
-		l = l[1:]
-		for _, v := range l {
-			d.Args = append(d.Args, v.(*ast.Identifier).Lit)
-		}
 	case token.IDENT:
-		d.Name = p.parseIdentifier().Lit
-		p.next()
+		n = p.parseIdentifier()
+	case token.LPAREN:
+		n = p.parseExpression()
+	case token.NUMBER:
+		n = p.parseNumber()
 	default:
-		p.file.AddError(p.pos, "Expected identifier(s) but got: ", p.lit)
-		return nil
+		//fmt.Println("subexpr, bad lit:", p.pos, "-", p.lit)
+		p.file.AddError(p.pos, "Unexpected token: ", p.lit)
 	}
-	if p.tok != token.LPAREN {
-		p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
-		return nil
-	}
-	var err *perror
-	n, err = p.parseExpression()
-	if err != nil {
-		p.file.AddError(err.pos, err.msg)
-		return nil
-	}
-	d.Impl = n
 	p.next()
-	if p.tok != token.RPAREN {
-		p.file.AddError(p.pos, "Expected closing paren but got: ", p.lit)
-		return nil
+	return n
+}
+
+func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
+	ue := new(ast.UserExpr)
+	ue.Name = p.lit
+	p.next()
+	for p.tok != token.RPAREN {
+		e := p.parseSubExpression()
+		if e != nil {
+			ue.Nodes = append(ue.Nodes, e)
+		}
 	}
-	return d
+	ue.RParen = p.pos
+	return ue
 }
