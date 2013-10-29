@@ -10,14 +10,16 @@
 
 (define f (+ 2 3))
 (print (f))
-;(define (square x) (* x x))
-;(print(square 10))
+(define (square x) (* x x))
+(print(square 10))
 
 ;(set +)
 (set a (- 5 2))
 (print a)
 ;(print +) ; should fail
 ;(print b) ; should fail
+(define (add_to_a x) (+ a x))
+(print (add_to_a 7))
 
 (print (< 1 2))
 (print (>= 3 3))

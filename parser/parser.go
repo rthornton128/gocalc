@@ -24,7 +24,7 @@ func ParseFile(f *token.File, str string) *ast.File {
 	p := new(parser)
 	p.init(f, str)
 	//p.topScope = root.Scope
-	//p.curScope = root.Scope
+	p.curScope = root.Scope
 	for n := p.parse(); n != nil; n = p.parse() {
 		root.Nodes = append(root.Nodes, n)
 		//p.topScope.Nodes = append(p.topScope.Nodes, n)
@@ -41,10 +41,10 @@ type parser struct {
 	file *token.File
 	scan *scanner.Scanner
 	//topScope *ast.Scope
-	//curScope *ast.Scope
-	tok token.Token
-	pos token.Pos
-	lit string
+	curScope *ast.Scope
+	tok      token.Token
+	pos      token.Pos
+	lit      string
 }
 
 func (p *parser) init(file *token.File, expr string) {
@@ -115,8 +115,8 @@ func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	d := new(ast.DefineExpr)
 	d.LParen = lparen
-	d.Args = make([]string, 0)  // TODO: remove
-	d.Scope = ast.NewScope(nil) // should be proper parent scope
+	d.Args = make([]string, 0)         // TODO: remove?
+	d.Scope = ast.NewScope(p.curScope) // should be proper parent scope
 	d.Impl = new(ast.Expression)
 	p.next()
 	switch p.tok {
@@ -126,7 +126,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		d.Name = l[0].(*ast.Identifier).Lit
 		l = l[1:]
 		for _, v := range l {
-			d.Args = append(d.Args, v.(*ast.Identifier).Lit) //TODO: remove
+			d.Args = append(d.Args, v.(*ast.Identifier).Lit) //TODO: remove?
 			d.Scope.Insert(v.(*ast.Identifier).Lit, nil)
 		}
 	case token.IDENT:

@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"misc/calc/token"
 )
 
@@ -115,4 +116,15 @@ func (s *Scope) Lookup(ident string) Node {
 		m = m.parent
 	}
 	return nil
+}
+
+// TODO: Temporary
+func (s *Scope) String() string {
+	tmp := s
+	var str string
+	for tmp != nil {
+		str += fmt.Sprintln(s.defs)
+		tmp = tmp.parent
+	}
+	return str
 }

@@ -39,6 +39,8 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 	switch node := n.(type) {
 	case *ast.CompExpr:
 		return e.evalCompExpr(node)
+	case *ast.DefineExpr:
+		e.evalDefineExpr(node)
 	case *ast.File:
 		var x interface{}
 		for _, n := range node.Nodes {
@@ -51,10 +53,13 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 		}
 		return x
 	case *ast.Identifier:
-		var n ast.Node
+		//var n ast.Node
 		//fmt.Println("Looking up:", node.Lit)
-		n = e.scope.Lookup(node.Lit)
+		//fmt.Println(e.scope)
+		n := e.scope.Lookup(node.Lit)
+		//fmt.Println(n)
 		if n != nil {
+			//fmt.Println("eval:", node.Lit, "is nil")
 			return e.eval(n)
 		}
 		return nil
@@ -64,8 +69,6 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 		return e.evalMathExpr(node)
 	case *ast.Number:
 		return node.Val
-	case *ast.DefineExpr:
-		e.evalDefineExpr(node)
 		return nil
 	case *ast.PrintExpr:
 		e.evalPrintExpr(node)
@@ -103,16 +106,7 @@ func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
 }
 
 func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
-	// TODO: replace with proper scoping code
-	//functions[d.Name] = d.Impl
-	fmt.Print("define ", d.Name, " with args:")
-	e.scope.Insert(d.Name, d.Impl)
-	for _, arg := range d.Args {
-		//variables[arg] = nil
-		fmt.Print(arg)
-		e.scope.Insert(arg, nil)
-	}
-	fmt.Println()
+	e.scope.Insert(d.Name, d)
 }
 
 func (e *evaluator) evalIfExpr(i *ast.IfExpr) interface{} {
@@ -143,7 +137,9 @@ func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
 
 func (e *evaluator) evalMathFunc(list []ast.Node, fn func(int, int) int) int {
 	a, ok := e.eval(list[0]).(int)
+	//fmt.Println("mathfunc: len list:", len(list))
 	if !ok {
+		//fmt.Println("mathfunc: not ok")
 		return 0 // or should this return an error?
 	}
 	for _, n := range list[1:] {
@@ -165,6 +161,7 @@ func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
 }
 
 func (e *evaluator) evalSetExpr(s *ast.SetExpr) {
+	//fmt.Println("setting", s.Name)
 	e.scope.Insert(s.Name, s.Value)
 }
 
@@ -176,6 +173,20 @@ func convBool(b bool) int {
 }
 
 func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
+	//fmt.Println("eval user expr:", u.Name)
 	n := e.scope.Lookup(u.Name)
-	return e.eval(n)
+	d, _ := n.(*ast.DefineExpr)
+	tmp := e.scope
+	e.scope = d.Scope
+	for i, a := range d.Args {
+		if len(u.Nodes) <= i {
+			break
+		}
+		//fmt.Println("adding arg:", a)
+		e.scope.Insert(a, u.Nodes[i])
+	}
+	i := d.Impl
+	r := e.eval(i)
+	e.scope = tmp
+	return r
 }
