@@ -137,9 +137,7 @@ func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
 
 func (e *evaluator) evalMathFunc(list []ast.Node, fn func(int, int) int) int {
 	a, ok := e.eval(list[0]).(int)
-	//fmt.Println("mathfunc: len list:", len(list))
 	if !ok {
-		//fmt.Println("mathfunc: not ok")
 		return 0 // or should this return an error?
 	}
 	for _, n := range list[1:] {
@@ -161,7 +159,6 @@ func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
 }
 
 func (e *evaluator) evalSetExpr(s *ast.SetExpr) {
-	//fmt.Println("setting", s.Name)
 	e.scope.Insert(s.Name, s.Value)
 }
 
@@ -173,7 +170,6 @@ func convBool(b bool) int {
 }
 
 func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
-	//fmt.Println("eval user expr:", u.Name)
 	n := e.scope.Lookup(u.Name)
 	d, _ := n.(*ast.DefineExpr)
 	tmp := e.scope
@@ -182,11 +178,13 @@ func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
 		if len(u.Nodes) <= i {
 			break
 		}
-		//fmt.Println("adding arg:", a)
 		e.scope.Insert(a, u.Nodes[i])
 	}
-	i := d.Impl
-	r := e.eval(i)
+	// TODO: this is kind of hokey...
+	var r interface{}
+	for _, i := range d.Impl {
+		r = e.eval(i)
+	}
 	e.scope = tmp
 	return r
 }

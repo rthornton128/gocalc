@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"fmt"
 	"misc/calc/token"
 )
 
@@ -40,7 +39,7 @@ type (
 		Scope *Scope
 		Name  string
 		Args  []string // TODO: remove
-		Impl  Node     // TODO: not just any old node allowed, expressions only
+		Impl  []Node
 	}
 	IfExpr struct {
 		Expression
@@ -118,13 +117,11 @@ func (s *Scope) Lookup(ident string) Node {
 	return nil
 }
 
-// TODO: Temporary
 func (s *Scope) String() string {
 	tmp := s
 	var str string
-	for tmp != nil {
-		str += fmt.Sprintln(s.defs)
-		tmp = tmp.parent
+	for k, _ := range tmp.defs {
+		str += k + " "
 	}
-	return str
+	return "[ " + str + "]"
 }

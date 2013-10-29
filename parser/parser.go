@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"errors"
+	//	"errors"
 	"fmt"
 	"misc/calc/ast"
 	"misc/calc/scanner"
@@ -23,24 +23,26 @@ func ParseFile(f *token.File, str string) *ast.File {
 	root := ast.NewFile(token.Pos(1), token.Pos(len(str)+1))
 	p := new(parser)
 	p.init(f, str)
-	//p.topScope = root.Scope
+	p.topScope = root.Scope
 	p.curScope = root.Scope
 	for n := p.parse(); n != nil; n = p.parse() {
 		root.Nodes = append(root.Nodes, n)
-		//p.topScope.Nodes = append(p.topScope.Nodes, n)
 		p.next()
 	}
 	//if p.file.NumErrors() > 0 {
 	//	p.file.PrintErrors()
 	//	return nil
 	//}
+	if p.topScope != p.curScope {
+		panic("Imbalanced scope!")
+	}
 	return root
 }
 
 type parser struct {
-	file *token.File
-	scan *scanner.Scanner
-	//topScope *ast.Scope
+	file     *token.File
+	scan     *scanner.Scanner
+	topScope *ast.Scope
 	curScope *ast.Scope
 	tok      token.Token
 	pos      token.Pos
@@ -59,10 +61,11 @@ type perror struct {
 	msg error
 }
 
+/*
 var closeError = errors.New("Unexpected ')'")
 var eofError = errors.New("Reached end of file")
 var openError = errors.New("Opening '(' with no closing bracket.")
-
+*/
 func (p *parser) next() {
 	p.tok, p.pos, p.lit = p.scan.Scan()
 	p.pos += p.file.Base()
@@ -115,9 +118,12 @@ func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	d := new(ast.DefineExpr)
 	d.LParen = lparen
-	d.Args = make([]string, 0)         // TODO: remove?
-	d.Scope = ast.NewScope(p.curScope) // should be proper parent scope
-	d.Impl = new(ast.Expression)
+	d.Args = make([]string, 0) // TODO: remove?
+	//fmt.Println("up scope!")
+	tmp := p.curScope
+	d.Scope = ast.NewScope(p.curScope)
+	p.curScope = d.Scope
+	d.Impl = make([]ast.Node, 0)
 	p.next()
 	switch p.tok {
 	case token.LPAREN:
@@ -136,16 +142,26 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		p.file.AddError(p.pos, "Expected identifier(s) but got: ", p.lit)
 		return nil
 	}
-	if p.tok != token.LPAREN {
-		p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
+	//fmt.Println("parseDefine:", d.Name)
+	for p.tok != token.RPAREN {
+		if p.tok != token.LPAREN {
+			p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
+			return nil
+		}
+		d.Impl = append(d.Impl, p.parseExpression())
+		p.next()
+	}
+	if len(d.Impl) < 1 {
+		p.file.AddError(p.pos, "Expected list of expressions but got: ", p.lit)
 		return nil
 	}
-	d.Impl = p.parseExpression()
-	p.next()
 	if p.tok != token.RPAREN {
 		p.file.AddError(p.pos, "Expected closing paren but got: ", p.lit)
 		return nil
 	}
+	//fmt.Println("down scope!")
+	//fmt.Println(d.Name, "had", len(d.Impl), "expressions as arguments")
+	p.curScope = tmp
 	return d
 }
 

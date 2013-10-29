@@ -8,18 +8,28 @@
 ;((+ 2 3))
 ;()
 
-(define f (+ 2 3))
-(print (f))
-(define (square x) (* x x))
-(print(square 10))
-
 ;(set +)
 (set a (- 5 2))
 (print a)
 ;(print +) ; should fail
 ;(print b) ; should fail
+
+(define f (+ 2 3))
+(print (f))
+(define (square x) (* x x))
+(print(square 10))
 (define (add_to_a x) (+ a x))
 (print (add_to_a 7))
+(define (add_a_to_b a b) (+ a b))
+(print (add_a_to_b 9 10))
+(define (Double a)
+	(define (dbl b) (* b 2))
+	(dbl a))
+(print (Double 8)) ; this one blows up when dbl is called
+(define (PrintTwice a)
+	(print a)
+	(print a))
+(PrintTwice 13) ; this function works
 
 (print (< 1 2))
 (print (>= 3 3))
