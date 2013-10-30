@@ -45,9 +45,7 @@ func (f *File) NumErrors() int {
 }
 
 func (f *File) PrintError(e Error) {
-	line, column := 1, int(e.pos)
-	fmt.Println("lines:", f.lines)
-	var i int
+	var i, line, column int
 	for i = 0; i < len(f.lines); i++ {
 		if int(e.pos) < f.lines[i]+1 {
 			break

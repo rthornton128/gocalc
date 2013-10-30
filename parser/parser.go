@@ -1,7 +1,6 @@
 package parser
 
 import (
-	//	"errors"
 	"fmt"
 	"misc/calc/ast"
 	"misc/calc/scanner"
@@ -119,7 +118,6 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	d := new(ast.DefineExpr)
 	d.LParen = lparen
 	d.Args = make([]string, 0) // TODO: remove?
-	//fmt.Println("up scope!")
 	tmp := p.curScope
 	d.Scope = ast.NewScope(p.curScope)
 	p.curScope = d.Scope
@@ -134,6 +132,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		for _, v := range l {
 			d.Args = append(d.Args, v.(*ast.Identifier).Lit) //TODO: remove?
 			d.Scope.Insert(v.(*ast.Identifier).Lit, nil)
+			p.curScope.Insert(v.(*ast.Identifier).Lit, d)
 		}
 	case token.IDENT:
 		d.Name = p.parseIdentifier().Lit
@@ -142,7 +141,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		p.file.AddError(p.pos, "Expected identifier(s) but got: ", p.lit)
 		return nil
 	}
-	//fmt.Println("parseDefine:", d.Name)
+	tmp.Insert(d.Name, d)
 	for p.tok != token.RPAREN {
 		if p.tok != token.LPAREN {
 			p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
@@ -159,8 +158,6 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		p.file.AddError(p.pos, "Expected closing paren but got: ", p.lit)
 		return nil
 	}
-	//fmt.Println("down scope!")
-	//fmt.Println(d.Name, "had", len(d.Impl), "expressions as arguments")
 	p.curScope = tmp
 	return d
 }
@@ -294,6 +291,7 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
 	}
 	se.RParen = p.pos
+	p.curScope.Insert(se.Name, se)
 	return se
 }
 
@@ -304,13 +302,18 @@ func (p *parser) parseSubExpression() ast.Node {
 	var n ast.Node
 	switch p.tok {
 	case token.IDENT:
-		n = p.parseIdentifier()
+		i := p.parseIdentifier()
+		if p.curScope.Lookup(i.Lit) == nil {
+			p.file.AddError(p.pos, "Undeclared identifier - ", i.Lit)
+			p.next()
+			return nil
+		}
+		n = i
 	case token.LPAREN:
 		n = p.parseExpression()
 	case token.NUMBER:
 		n = p.parseNumber()
 	default:
-		//fmt.Println("subexpr, bad lit:", p.pos, "-", p.lit)
 		p.file.AddError(p.pos, "Unexpected token: ", p.lit)
 	}
 	p.next()
@@ -318,6 +321,10 @@ func (p *parser) parseSubExpression() ast.Node {
 }
 
 func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
+	if p.curScope.Lookup(p.lit) == nil {
+		p.file.AddError(p.pos, "Undeclared variable: ", p.lit)
+		return nil
+	}
 	ue := new(ast.UserExpr)
 	ue.Name = p.lit
 	p.next()

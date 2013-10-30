@@ -3,10 +3,11 @@
 (print (+ (* 3 10) 6))
 
 ; The follow section contains errors
-;a
+a
 ;+(+ 2 3)) ; uncomment to produce some errors (was for testing)
 ;((+ 2 3))
 ;()
+;(foo)
 
 ;(set +)
 (set a (- 5 2))

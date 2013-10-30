@@ -29,8 +29,9 @@ func main() {
 		data, err := ioutil.ReadFile(flag.Arg(0))
 		if err != nil {
 			fmt.Println(err)
+		} else {
+			eval.EvalFile(flag.Arg(0), string(stripCR(data)))
 		}
-		eval.EvalExpr(string(stripCR(data)))
 	} else {
 		fmt.Println("Welcome to Calc REPL", version)
 
