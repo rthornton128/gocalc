@@ -1,12 +1,13 @@
 package scanner
 
 import (
-	//"fmt"
 	"misc/calc/token"
+	"unicode"
+	"unicode/utf8"
 )
 
 type Scanner struct {
-	ch        byte
+	ch        rune
 	str       string
 	off, roff int
 	file      *token.File
@@ -28,7 +29,7 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 		tok = token.Lookup(lit)
 		return
 	}
-	if isDigit(s.ch) {
+	if unicode.IsDigit(s.ch) {
 		pos, lit = s.scanNumber()
 		return token.NUMBER, pos, lit
 	}
@@ -38,7 +39,7 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 	case '+':
 		tok = token.ADD
 	case '-':
-		if isDigit(s.ch) { // is '-' a unary operator for a number?
+		if unicode.IsDigit(s.ch) { // is '-' a unary operator for a number?
 			pos, lit = s.scanNumber()
 			pos, lit, tok = pos-1, string('-')+lit, token.NUMBER
 			return
@@ -94,29 +95,37 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 	return
 }
 
-func isAlpha(ch byte) bool {
+func isAlpha(ch rune) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
 }
 
-func isDigit(ch byte) bool {
+/*
+func isDigit(ch rune) bool {
 	return ch >= '0' && ch <= '9'
-}
+}*/
 
 func (s *Scanner) next() {
 	s.off = s.roff
 	if s.off < len(s.str) {
-		s.ch = s.str[s.off]
+		r, n := utf8.DecodeRuneInString(s.str[s.off:])
+		if r == utf8.RuneError {
+			s.file.AddError(s.file.Base()+token.Pos(s.off), "Invalid UTF8 string!")
+			return
+		}
+		s.ch = r
+		s.roff += n
 	} else {
 		s.ch = 0
 	}
 	if s.ch == '\n' {
 		s.file.AddLine(s.off)
 	}
-	s.roff++
+	//s.roff++
 }
 
 func (s *Scanner) skipWhitespace() {
-	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' || s.ch == '\r' {
+	//for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' || s.ch == '\r' {
+	for unicode.IsSpace(s.ch) {
 		s.next()
 	}
 }
@@ -131,7 +140,7 @@ func (s *Scanner) scanComment() (token.Pos, string) {
 
 func (s *Scanner) scanIdentifier() (token.Pos, string) {
 	start := s.off
-	for isDigit(s.ch) || isAlpha(s.ch) || s.ch == '_' || s.ch == '-' {
+	for unicode.IsDigit(s.ch) || isAlpha(s.ch) || s.ch == '_' || s.ch == '-' {
 		s.next()
 	}
 	return token.Pos(start), s.str[start:s.off]
@@ -139,7 +148,7 @@ func (s *Scanner) scanIdentifier() (token.Pos, string) {
 
 func (s *Scanner) scanNumber() (token.Pos, string) {
 	start := s.off
-	for isDigit(s.ch) {
+	for unicode.IsDigit(s.ch) {
 		s.next()
 	}
 	return token.Pos(start), s.str[start:s.off]
