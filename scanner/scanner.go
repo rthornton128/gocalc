@@ -104,7 +104,7 @@ func isDigit(ch byte) bool {
 
 func (s *Scanner) next() {
 	s.off = s.roff
-	if s.roff < len(s.str) {
+	if s.off < len(s.str) {
 		s.ch = s.str[s.off]
 	} else {
 		s.ch = 0

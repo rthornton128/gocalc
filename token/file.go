@@ -32,7 +32,7 @@ func (f *File) AddError(p Pos, args ...interface{}) {
 	if f.ValidPos(p) {
 		f.errs = append(f.errs, Error{p, fmt.Sprint(args...)})
 	} else {
-		panic("Invalid Position!")
+		panic("Invalid Position!") // this a little extreme?
 	}
 }
 
@@ -46,16 +46,15 @@ func (f *File) NumErrors() int {
 
 func (f *File) PrintError(e Error) {
 	line, column := 1, int(e.pos)
-	//fmt.Println("lines:", f.lines)
-	for i, p := range f.lines {
-		//fmt.Println(e.pos, "vs", p+1)
-		//fmt.Println("i:", i)
-		line = i + 1
-		column = p - int(e.pos) + 1
-		if int(e.pos) < p+1 {
+	fmt.Println("lines:", f.lines)
+	var i int
+	for i = 0; i < len(f.lines); i++ {
+		if int(e.pos) < f.lines[i]+1 {
 			break
 		}
 	}
+	line = i + 1
+	column = int(e.pos) - (f.lines[i-1] + 1)
 	if len(f.name) > 0 {
 		fmt.Println(f.name, "- Line:", line, "Column:", column, "-", e.msg)
 	} else {
