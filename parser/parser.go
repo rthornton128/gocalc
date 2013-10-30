@@ -304,7 +304,7 @@ func (p *parser) parseSubExpression() ast.Node {
 	case token.IDENT:
 		i := p.parseIdentifier()
 		if p.curScope.Lookup(i.Lit) == nil {
-			p.file.AddError(p.pos, "Undeclared identifier - ", i.Lit)
+			p.file.AddError(p.pos, "Undeclared identifier: ", i.Lit)
 			p.next()
 			return nil
 		}
@@ -322,7 +322,7 @@ func (p *parser) parseSubExpression() ast.Node {
 
 func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
 	if p.curScope.Lookup(p.lit) == nil {
-		p.file.AddError(p.pos, "Undeclared variable: ", p.lit)
+		p.file.AddError(p.pos, "Undeclared identifier: ", p.lit)
 		return nil
 	}
 	ue := new(ast.UserExpr)
