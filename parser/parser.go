@@ -28,10 +28,6 @@ func ParseFile(f *token.File, str string) *ast.File {
 		root.Nodes = append(root.Nodes, n)
 		p.next()
 	}
-	//if p.file.NumErrors() > 0 {
-	//	p.file.PrintErrors()
-	//	return nil
-	//}
 	if p.topScope != p.curScope {
 		panic("Imbalanced scope!")
 	}
@@ -60,11 +56,6 @@ type perror struct {
 	msg error
 }
 
-/*
-var closeError = errors.New("Unexpected ')'")
-var eofError = errors.New("Reached end of file")
-var openError = errors.New("Opening '(' with no closing bracket.")
-*/
 func (p *parser) next() {
 	p.tok, p.pos, p.lit = p.scan.Scan()
 	p.pos += p.file.Base()
@@ -175,7 +166,8 @@ func (p *parser) parseExpression() ast.Node {
 		return nil
 	case token.LT, token.LTE, token.GT, token.GTE, token.EQ, token.NEQ:
 		return p.parseComparisonExpression(lparen)
-	case token.ADD, token.SUB, token.MUL, token.DIV, token.MOD:
+	case token.ADD, token.SUB, token.MUL, token.DIV, token.MOD, token.AND,
+		token.OR:
 		return p.parseMathExpression(lparen)
 	case token.DEFINE:
 		return p.parseDefineExpression(lparen)
@@ -235,6 +227,13 @@ func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 	}
 	return ie
 }
+
+/*
+func (p *parser) parseLogicalExpression(lp token.Pos) *ast.LogicExpr {
+	le := new(ast.LogicExpr)
+	le.OpLit = p.lit
+
+}*/
 
 func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
 	me := new(ast.MathExpr)

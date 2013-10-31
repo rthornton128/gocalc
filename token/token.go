@@ -28,16 +28,20 @@ const (
 	lit_end
 
 	key_start
+	AND
 	DEFINE
 	IF
+	OR
 	PRINT
 	SET
 	key_end
 )
 
 var tokens = map[string]Token{
+	"and":    AND,
 	"define": DEFINE,
 	"if":     IF,
+	"or":     OR,
 	"print":  PRINT,
 	"set":    SET,
 }

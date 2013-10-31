@@ -90,17 +90,17 @@ func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
 	}
 	switch ce.CompLit {
 	case "<":
-		return convBool(a < b)
+		return BtoI(a < b)
 	case "<=":
-		return convBool(a <= b)
+		return BtoI(a <= b)
 	case "<>":
-		return convBool(a != b)
+		return BtoI(a != b)
 	case ">":
-		return convBool(a > b)
+		return BtoI(a > b)
 	case ">=":
-		return convBool(a >= b)
+		return BtoI(a >= b)
 	case "=":
-		return convBool(a == b)
+		return BtoI(a == b)
 	}
 	return 0
 }
@@ -130,6 +130,12 @@ func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
 		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a / b })
 	case "%":
 		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a % b })
+	case "and":
+		return e.evalMathFunc(m.ExprList,
+			func(a, b int) int { return BtoI(ItoB(a) && ItoB(b)) })
+	case "or":
+		return e.evalMathFunc(m.ExprList,
+			func(a, b int) int { return BtoI(ItoB(a) || ItoB(b)) })
 	default:
 		return nil // not reachable (fingers crossed!)
 	}
@@ -162,11 +168,15 @@ func (e *evaluator) evalSetExpr(s *ast.SetExpr) {
 	e.scope.Insert(s.Name, s.Value)
 }
 
-func convBool(b bool) int {
+func BtoI(b bool) int {
 	if b {
 		return 1
 	}
 	return 0
+}
+
+func ItoB(i int) bool {
+	return i != 0
 }
 
 func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {

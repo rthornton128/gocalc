@@ -1,6 +1,7 @@
 ; a comment
 (print 24)
 (print (+ (* 3 10) 6))
+(print)
 
 ; The follow section contains errors
 a
@@ -14,6 +15,7 @@ a
 (print a)
 ;(print +) ; should fail
 ;(print b) ; should fail
+(print)
 
 (define f (+ 2 3))
 (print (f))
@@ -31,7 +33,9 @@ a
 	(print a)
 	(print a))
 (PrintTwice 13) ; this function works
+(print)
 
+; comparison tests
 (print (< 1 2))
 (print (>= 3 3))
 (print (<> 3 3))
@@ -39,3 +43,12 @@ a
 (if 1 ; I'm sorry, but this is so awesome that it works
 	(print 2)
 	(print 3))
+(print)
+
+; logical tests
+(print (and 1 1))
+(print (and 1 0))
+(print (and 0 0))
+(print (or 1 1))
+(print (or 1 0))
+(print (or 0 0))
