@@ -1,0 +1,10 @@
+; fibonacci example
+(define (fib x)
+	(if (or (= x 0) (= x 1)) x
+		(+ (fib (- x 1)) x)))
+
+(print (fib 0)) ; 0
+(print (fib 1)) ; 1
+(print (fib 3)) ; 6
+(print (fib 5)) ; 15
+(print (fib 10)) ; 55
