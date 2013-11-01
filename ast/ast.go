@@ -73,9 +73,8 @@ type (
 		Scope *Scope
 	}
 	Scope struct {
-		defs map[string]Node
-		//Nodes  []Node // temporary
-		parent *Scope
+		defs   map[string]interface{}
+		Parent *Scope
 	}
 )
 
@@ -99,20 +98,20 @@ func (f *File) Pos() token.Pos { return f.pos }
 func (f *File) End() token.Pos { return f.end }
 
 func NewScope(parent *Scope) *Scope {
-	return &Scope{make(map[string]Node), parent}
+	return &Scope{make(map[string]interface{}), parent}
 }
 
-func (s *Scope) Insert(ident string, n Node) {
+func (s *Scope) Insert(ident string, n interface{}) {
 	s.defs[ident] = n
 }
 
-func (s *Scope) Lookup(ident string) Node {
+func (s *Scope) Lookup(ident string) interface{} {
 	m := s
 	for m != nil {
 		if n, ok := m.defs[ident]; ok {
 			return n
 		}
-		m = m.parent
+		m = m.Parent
 	}
 	return nil
 }

@@ -32,11 +32,23 @@ type evaluator struct {
 	scope *ast.Scope // current scope
 }
 
-func (e *evaluator) eval(n ast.Node) interface{} {
+/* Scope */
+func (e *evaluator) openScope() {
+	e.scope = ast.NewScope(e.scope)
+}
+
+func (e *evaluator) closeScope() {
+	e.scope = e.scope.Parent
+}
+
+/* Evaluation */
+func (e *evaluator) eval(n interface{}) interface{} {
 	if n == nil {
 		return nil
 	}
 	switch node := n.(type) {
+	case int:
+		return node
 	case *ast.CompExpr:
 		return e.evalCompExpr(node)
 	case *ast.DefineExpr:
@@ -44,7 +56,7 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 	case *ast.File:
 		var x interface{}
 		for _, n := range node.Nodes {
-			x = e.eval(n) // scoping seems like it should come into play here
+			x = e.eval(n)
 			switch t := x.(type) {
 			case *ast.Identifier:
 				e.file.AddError(t.Pos(), "Unknown identifier: ", t.Lit)
@@ -53,16 +65,7 @@ func (e *evaluator) eval(n ast.Node) interface{} {
 		}
 		return x
 	case *ast.Identifier:
-		//var n ast.Node
-		//fmt.Println("Looking up:", node.Lit)
-		//fmt.Println(e.scope)
-		n := e.scope.Lookup(node.Lit)
-		//fmt.Println(n)
-		if n != nil {
-			//fmt.Println("eval:", node.Lit, "is nil")
-			return e.eval(n)
-		}
-		return nil
+		return e.eval(e.scope.Lookup(node.Lit))
 	case *ast.IfExpr:
 		return e.evalIfExpr(node)
 	case *ast.MathExpr:
@@ -110,8 +113,7 @@ func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
 }
 
 func (e *evaluator) evalIfExpr(i *ast.IfExpr) interface{} {
-	x := 0 // default to false
-	x, _ = e.eval(i.Comp).(int)
+	x, _ := e.eval(i.Comp).(int)
 	if x >= 1 {
 		return e.eval(i.Then)
 	}
@@ -182,19 +184,21 @@ func ItoB(i int) bool {
 func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
 	n := e.scope.Lookup(u.Name)
 	d, _ := n.(*ast.DefineExpr)
-	tmp := e.scope
-	e.scope = d.Scope
+	e.openScope()
 	for i, a := range d.Args {
 		if len(u.Nodes) <= i {
 			break
 		}
-		e.scope.Insert(a, u.Nodes[i])
+		x := e.eval(u.Nodes[i])
+		e.scope.Insert(a, x)
 	}
-	// TODO: this is kind of hokey...
 	var r interface{}
-	for _, i := range d.Impl {
-		r = e.eval(i)
+	for _, v := range d.Impl {
+		r = e.eval(v)
+		if r != nil {
+			break
+		}
 	}
-	e.scope = tmp
+	e.closeScope()
 	return r
 }
