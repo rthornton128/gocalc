@@ -8,7 +8,7 @@
 package scanner
 
 import (
-	"misc/calc/token"
+	"github.com/rthornton128/gocalc/token"
 	"unicode"
 	"unicode/utf8"
 )

@@ -9,9 +9,9 @@ package eval
 
 import (
 	"fmt"
-	"misc/calc/ast"
-	"misc/calc/parser"
-	"misc/calc/token"
+	"github.com/rthornton128/gocalc/ast"
+	"github.com/rthornton128/gocalc/parser"
+	"github.com/rthornton128/gocalc/token"
 )
 
 func EvalExpr(expr string) interface{} {

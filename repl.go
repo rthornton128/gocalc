@@ -11,8 +11,8 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/rthornton128/gocalc/eval"
 	"io/ioutil"
-	"misc/calc/eval"
 	"os"
 )
 

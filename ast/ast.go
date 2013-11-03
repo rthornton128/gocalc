@@ -8,7 +8,7 @@
 package ast
 
 import (
-	"misc/calc/token"
+	"github.com/rthornton128/gocalc/token"
 )
 
 type (

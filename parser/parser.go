@@ -9,9 +9,9 @@ package parser
 
 import (
 	"fmt"
-	"misc/calc/ast"
-	"misc/calc/scanner"
-	"misc/calc/token"
+	"github.com/rthornton128/gocalc/ast"
+	"github.com/rthornton128/gocalc/scanner"
+	"github.com/rthornton128/gocalc/token"
 	"strconv"
 )
 

@@ -1,7 +1,7 @@
 package eval_test
 
 import (
-	"misc/calc/eval"
+	"github.com/rthornton128/gocalc/eval"
 	"testing"
 )
 
