@@ -54,8 +54,6 @@ func (e *evaluator) eval(n interface{}) interface{} {
 		return nil
 	}
 	switch node := n.(type) {
-	case int:
-		return node
 	case *ast.CompExpr:
 		return e.evalCompExpr(node)
 	case *ast.DefineExpr:
@@ -88,8 +86,10 @@ func (e *evaluator) eval(n interface{}) interface{} {
 		return nil
 	case *ast.UserExpr:
 		return e.evalUserExpr(node)
+	default:
+		return node
 	}
-	return nil
+	return nil // unreachable
 }
 
 func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
@@ -175,17 +175,6 @@ func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
 
 func (e *evaluator) evalSetExpr(s *ast.SetExpr) {
 	e.scope.Insert(s.Name, s.Value)
-}
-
-func BtoI(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
-func ItoB(i int) bool {
-	return i != 0
 }
 
 func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
