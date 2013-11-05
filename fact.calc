@@ -5,8 +5,8 @@
 
 (print (fact1 1)) ; should be 1
 (print (fact1 3)) ; should be 6
-(print (fact1 5)) ; should be 15
-
+(print (fact1 5)) ; should be 120
+(print)
 
 (define (fact2 x)
 	(define (fact-tail x accum)
@@ -16,4 +16,4 @@
 
 (print (fact2 1)) ; should be 1
 (print (fact2 3)) ; should be 6
-(print (fact2 5)) ; should be 15
+(print (fact2 5)) ; should be 120

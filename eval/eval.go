@@ -192,12 +192,15 @@ func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
 	n := e.scope.Lookup(u.Name)
 	d, _ := n.(*ast.DefineExpr)
 	e.openScope()
-	for i, a := range d.Args {
+	args := make([]interface{}, len(d.Args))
+	for i, _ := range args {
 		if len(u.Nodes) <= i {
 			break
 		}
-		x := e.eval(u.Nodes[i])
-		e.scope.Insert(a, x)
+		args[i] = e.eval(u.Nodes[i])
+	}
+	for i, v := range args {
+		e.scope.Insert(d.Args[i], v)
 	}
 	var r interface{}
 	for _, v := range d.Impl {

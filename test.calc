@@ -17,6 +17,7 @@ a
 ;(print b) ; should fail
 (print)
 
+; define tests
 (define f (+ 2 3))
 (print (f))
 (define (square x) (* x x))
@@ -33,6 +34,8 @@ a
 	(print a)
 	(print a))
 (PrintTwice 13) ; this function works
+(define (add a b) (+ a b))
+(print (add 1 2 3)) ; currently, 3 is discarded...does this match spec?
 (print)
 
 ; comparison tests
