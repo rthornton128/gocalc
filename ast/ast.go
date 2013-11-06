@@ -25,6 +25,10 @@ type (
 		Lit string
 		Val int
 	}
+	String struct {
+		Str token.Pos
+		Lit string
+	}
 	Operator struct {
 		Opr token.Pos
 		Val string
@@ -33,7 +37,6 @@ type (
 		LParen token.Pos
 		RParen token.Pos
 		Nodes  []Node
-		//Scope  *Scope // TODO: remove me?
 	}
 	CompExpr struct {
 		Expression
@@ -45,7 +48,7 @@ type (
 		Expression
 		Scope *Scope
 		Name  string
-		Args  []string // TODO: remove
+		Args  []string // TODO: remove?
 		Impl  []Node
 	}
 	IfExpr struct {
@@ -90,6 +93,9 @@ func (i *Identifier) End() token.Pos { return i.Id + token.Pos(len(i.Lit)) }
 
 func (n *Number) Pos() token.Pos { return n.Num }
 func (n *Number) End() token.Pos { return n.Num + token.Pos(len(n.Lit)) }
+
+func (s *String) Pos() token.Pos { return s.Str }
+func (s *String) End() token.Pos { return s.Str + token.Pos(len(s.Lit)) }
 
 func (o *Operator) Pos() token.Pos { return o.Opr }
 func (o *Operator) End() token.Pos { return o.Opr + 1 }

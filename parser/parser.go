@@ -78,6 +78,8 @@ func (p *parser) parse() ast.Node {
 		n = p.parseIdentifier()
 	case token.NUMBER:
 		n = p.parseNumber()
+	case token.STRING:
+		n = p.parseString()
 	case token.LPAREN:
 		n = p.parseExpression()
 	case token.COMMENT:
@@ -235,13 +237,6 @@ func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 	return ie
 }
 
-/*
-func (p *parser) parseLogicalExpression(lp token.Pos) *ast.LogicExpr {
-	le := new(ast.LogicExpr)
-	le.OpLit = p.lit
-
-}*/
-
 func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
 	me := new(ast.MathExpr)
 	me.OpLit = p.lit
@@ -301,6 +296,10 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 	return se
 }
 
+func (p *parser) parseString() *ast.String {
+	return &ast.String{p.pos, p.lit}
+}
+
 func (p *parser) parseSubExpression() ast.Node {
 	for p.tok == token.COMMENT {
 		p.next()
@@ -310,6 +309,7 @@ func (p *parser) parseSubExpression() ast.Node {
 	case token.IDENT:
 		i := p.parseIdentifier()
 		if p.curScope.Lookup(i.Lit) == nil {
+			// the string problem lies here =)
 			p.file.AddError(p.pos, "Undeclared identifier: ", i.Lit)
 			p.next()
 			return nil

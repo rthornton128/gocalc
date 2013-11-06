@@ -67,6 +67,18 @@ func TestScannerScan(t *testing.T) {
 			[]token.Pos{0, 9},
 			[]string{";comment", "234"},
 		},
+		{
+			"\"a string\"",
+			[]token.Token{token.STRING},
+			[]token.Pos{0},
+			[]string{"\"a string\""},
+		},
+		{
+			"\"a string\"\"a string\"",
+			[]token.Token{token.STRING, token.STRING},
+			[]token.Pos{0, 10},
+			[]string{"\"a string\"", "\"a string\""},
+		},
 	}
 	for x, test := range tests {
 		s := new(scanner.Scanner)

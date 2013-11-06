@@ -1,7 +1,8 @@
-; a comment
+; basic print tests
 (print 24)
 (print (+ (* 3 10) 6))
 (print)
+(print "test string")
 
 ; The follow section contains errors
 a

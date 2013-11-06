@@ -32,6 +32,7 @@ const (
 	lit_start
 	IDENT
 	NUMBER
+	STRING
 	lit_end
 
 	key_start

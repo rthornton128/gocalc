@@ -77,13 +77,14 @@ func (e *evaluator) eval(n interface{}) interface{} {
 		return e.evalMathExpr(node)
 	case *ast.Number:
 		return node.Val
-		return nil
 	case *ast.PrintExpr:
 		e.evalPrintExpr(node)
 		return nil
 	case *ast.SetExpr:
 		e.evalSetExpr(node)
 		return nil
+	case *ast.String:
+		return node.Lit[1 : len(node.Lit)-2]
 	case *ast.UserExpr:
 		return e.evalUserExpr(node)
 	default:

@@ -41,6 +41,7 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 		return token.NUMBER, pos, lit
 	}
 	ch := s.ch
+	pos = token.Pos(s.off)
 	s.next()
 	switch ch {
 	case '+':
@@ -72,12 +73,12 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 		switch s.ch {
 		case '=':
 			lit = string(ch) + string(s.ch)
-			pos, tok = token.Pos(s.off-1), token.LTE
+			tok = token.LTE
 			s.next()
 			return
 		case '>':
 			lit = string(ch) + string(s.ch)
-			pos, tok = token.Pos(s.off-1), token.NEQ
+			tok = token.NEQ
 			s.next()
 			return
 		}
@@ -85,11 +86,15 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 	case '>':
 		if s.ch == '=' {
 			lit = string(ch) + string(s.ch)
-			pos, tok = token.Pos(s.off-1), token.GTE
+			tok = token.GTE
 			s.next()
 			return
 		}
 		tok = token.GT
+	case '"':
+		lit = s.scanString()
+		tok = token.STRING
+		return
 	default:
 		if s.off >= len(s.str) {
 			tok = token.EOF
@@ -97,7 +102,6 @@ func (s *Scanner) Scan() (tok token.Token, pos token.Pos, lit string) {
 			return
 		}
 	}
-	pos = token.Pos(s.off - 1)
 	lit = string(ch)
 	return
 }
@@ -159,4 +163,13 @@ func (s *Scanner) scanNumber() (token.Pos, string) {
 		s.next()
 	}
 	return token.Pos(start), s.str[start:s.off]
+}
+
+func (s *Scanner) scanString() string {
+	start := s.off - 1
+	for s.ch != '"' {
+		s.next()
+	}
+	s.next()
+	return s.str[start:s.off]
 }
