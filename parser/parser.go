@@ -267,7 +267,7 @@ func (p *parser) parsePrintExpression(lparen token.Pos) *ast.PrintExpr {
 	pe.Nodes = make([]ast.Node, 0)
 	p.next()
 	for p.tok != token.RPAREN {
-		pe.Nodes = append(pe.Nodes, p.parseSubExpression())
+		pe.Nodes = append(pe.Nodes, p.parseSubExpression2())
 	}
 	if p.tok != token.RPAREN {
 		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
@@ -309,7 +309,6 @@ func (p *parser) parseSubExpression() ast.Node {
 	case token.IDENT:
 		i := p.parseIdentifier()
 		if p.curScope.Lookup(i.Lit) == nil {
-			// the string problem lies here =)
 			p.file.AddError(p.pos, "Undeclared identifier: ", i.Lit)
 			p.next()
 			return nil
@@ -324,6 +323,18 @@ func (p *parser) parseSubExpression() ast.Node {
 	}
 	p.next()
 	return n
+}
+
+func (p *parser) parseSubExpression2() ast.Node {
+	for p.tok == token.COMMENT {
+		p.next()
+	}
+	if p.tok == token.STRING {
+		n := p.parseString()
+		p.next()
+		return n
+	}
+	return p.parseSubExpression()
 }
 
 func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
