@@ -346,7 +346,7 @@ func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
 	ue.Name = p.lit
 	p.next()
 	for p.tok != token.RPAREN {
-		e := p.parseSubExpression()
+		e := p.parseSubExpression2()
 		if e != nil {
 			ue.Nodes = append(ue.Nodes, e)
 		}

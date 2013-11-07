@@ -38,6 +38,8 @@ a
 (PrintTwice 13) ; this function works
 (define (add a b) (+ a b))
 (print (add 1 2 3)) ; currently, 3 is discarded...does this match spec?
+(define (my-print x) (print x))
+(my-print "my-print")
 (print)
 
 ; comparison tests
