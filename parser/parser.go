@@ -143,20 +143,26 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	}
 	tmp.Insert(d.Name, d)
 	for p.tok != token.RPAREN {
-		if p.tok != token.LPAREN {
-			p.file.AddError(p.pos, "Expected expression but got: ", p.lit)
-			return nil
+		switch p.tok {
+		case token.COMMENT: // skip comments
+		case token.LPAREN:
+			d.Impl = append(d.Impl, p.parseExpression())
+		case token.IDENT:
+			d.Impl = append(d.Impl, p.parseIdentifier())
+		default:
+			p.file.AddError(p.pos, "Expected expression or identifier but got: ",
+				p.lit)
+			break
 		}
-		d.Impl = append(d.Impl, p.parseExpression())
 		p.next()
 	}
 	if len(d.Impl) < 1 {
 		p.file.AddError(p.pos, "Expected list of expressions but got: ", p.lit)
-		return nil
+		d = nil // don't exit without reverting scope
 	}
 	if p.tok != token.RPAREN {
 		p.file.AddError(p.pos, "Expected closing paren but got: ", p.lit)
-		return nil
+		d = nil // don't exit without reverting scope
 	}
 	p.curScope = tmp
 	return d

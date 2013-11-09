@@ -40,6 +40,10 @@ a
 (print (add 1 2 3)) ; currently, 3 is discarded...does this match spec?
 (define (my-print x) (print x))
 (my-print "my-print")
+(define (decr x)
+	(set y (- x 1)) ; changing x to y is a problem. Needs scoping fix, just like
+	y)              ; user/define expressions has
+(print (decr 3))
 (print)
 
 ; comparison tests
