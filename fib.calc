@@ -8,3 +8,4 @@
 (print (fib 3)) ; 6
 (print (fib 5)) ; 15
 (print (fib 10)) ; 55
+(print (fib 100))
