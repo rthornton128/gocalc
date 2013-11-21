@@ -222,22 +222,24 @@ func (p *parser) parseIdentifierList() *ast.Expression {
 
 func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 	ie := new(ast.IfExpr)
-	ie.LParen, ie.Else = lparen, nil
+	ie.Nodes = make([]ast.Node, 3)
+	ie.LParen = lparen
 	p.next()
-	ie.Comp = p.parseSubExpression()
-	ie.Then = p.parseSubExpression()
+	ie.Nodes[0] = p.parseSubExpression()
+	ie.Nodes[1] = p.parseSubExpression()
 	if p.tok == token.RPAREN {
-		ie.Else = nil
+		ie.Nodes[2] = nil
 		ie.RParen = p.pos
 		return ie
 	}
-	ie.Else = p.parseSubExpression()
-	if p.tok != token.RPAREN {
+	ie.Nodes[2] = p.parseSubExpression()
+	if p.tok != token.RPAREN { // TODO: p.expect(token.RPAREN)
 		p.file.AddError(p.pos, "Expected closing paren, got: ", p.lit)
 		return nil
 	}
 	ie.RParen = p.pos
-	if ie.Comp == nil || ie.Then == nil {
+	if ie.Nodes[0] == nil || ie.Nodes[1] == nil {
+		p.file.AddError(p.pos, "'if' expression must at least two elements")
 		return nil
 	}
 	return ie

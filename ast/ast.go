@@ -41,8 +41,8 @@ type (
 	CompExpr struct {
 		Expression
 		CompLit string
-		A       Node
-		B       Node
+		A       Node // consider removing and using []Node in Expression
+		B       Node // see above
 	}
 	DefineExpr struct {
 		Expression
@@ -53,9 +53,9 @@ type (
 	}
 	IfExpr struct {
 		Expression
-		Comp Node // predicate
-		Then Node
-		Else Node
+	}
+	ImportExpr struct {
+		Expression
 	}
 	MathExpr struct {
 		Expression

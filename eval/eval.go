@@ -121,11 +121,11 @@ func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
 }
 
 func (e *evaluator) evalIfExpr(i *ast.IfExpr) interface{} {
-	x, _ := e.eval(i.Comp).(int)
+	x, _ := e.eval(i.Nodes[0]).(int)
 	if x >= 1 {
-		return e.eval(i.Then)
+		return e.eval(i.Nodes[1])
 	}
-	return e.eval(i.Else) // returns nil if no else clause
+	return e.eval(i.Nodes[2]) // returns nil if no else clause
 }
 
 func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
