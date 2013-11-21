@@ -131,20 +131,20 @@ func (e *evaluator) evalIfExpr(i *ast.IfExpr) interface{} {
 func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
 	switch m.OpLit {
 	case "+":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a + b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a + b })
 	case "-":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a - b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a - b })
 	case "*":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a * b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a * b })
 	case "/":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a / b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a / b })
 	case "%":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a % b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a % b })
 	case "and":
-		return e.evalMathFunc(m.ExprList,
+		return e.evalMathFunc(m.Nodes,
 			func(a, b int) int { return BtoI(ItoB(a) && ItoB(b)) })
 	case "or":
-		return e.evalMathFunc(m.ExprList,
+		return e.evalMathFunc(m.Nodes,
 			func(a, b int) int { return BtoI(ItoB(a) || ItoB(b)) })
 	default:
 		return nil // not reachable (fingers crossed!)

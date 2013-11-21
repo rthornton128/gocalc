@@ -249,12 +249,13 @@ func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 
 func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
 	me := new(ast.MathExpr)
+	me.Nodes = make([]ast.Node, 0)
 	me.OpLit = p.lit
 	p.next()
 	for p.tok != token.RPAREN && p.tok != token.EOF {
-		me.ExprList = append(me.ExprList, p.parseSubExpression())
+		me.Nodes = append(me.Nodes, p.parseSubExpression())
 	}
-	if len(me.ExprList) < 2 {
+	if len(me.Nodes) < 2 {
 		p.file.AddError(p.pos, "Math expressions must have at least 2 arguments")
 		return nil
 	}

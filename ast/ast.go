@@ -57,8 +57,7 @@ type (
 	}
 	MathExpr struct {
 		Expression
-		OpLit    string
-		ExprList []Node
+		OpLit string
 	}
 	PrintExpr struct {
 		Expression
