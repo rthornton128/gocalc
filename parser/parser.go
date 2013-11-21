@@ -97,12 +97,14 @@ func (p *parser) parse() ast.Node {
 
 func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 	ce := new(ast.CompExpr)
+	ce.Nodes = make([]ast.Node, 2)
 	ce.LParen = lp
 	ce.CompLit = p.lit
 	p.next()
-	ce.A = p.parseSubExpression()
-	ce.B = p.parseSubExpression()
-	if ce.A == nil || ce.B == nil { // doesn't seem right...
+	ce.Nodes[0] = p.parseSubExpression()
+	ce.Nodes[1] = p.parseSubExpression()
+	if ce.Nodes[0] == nil || ce.Nodes[1] == nil { // doesn't seem right...
+		// TODO: Fixme!
 		p.file.AddError(p.pos, "Some kind of conditional error")
 	}
 	//p.expect(token.RPAREN)

@@ -41,8 +41,6 @@ type (
 	CompExpr struct {
 		Expression
 		CompLit string
-		A       Node // consider removing and using []Node in Expression
-		B       Node // see above
 	}
 	DefineExpr struct {
 		Expression

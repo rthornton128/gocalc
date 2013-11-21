@@ -94,8 +94,8 @@ func (e *evaluator) eval(n interface{}) interface{} {
 }
 
 func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
-	a, aok := e.eval(ce.A).(int)
-	b, bok := e.eval(ce.B).(int)
+	a, aok := e.eval(ce.Nodes[0]).(int)
+	b, bok := e.eval(ce.Nodes[1]).(int)
 	if !aok || !bok {
 		return 0
 	}
