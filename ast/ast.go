@@ -46,8 +46,7 @@ type (
 		Expression
 		Scope *Scope
 		Name  string
-		Args  []string // TODO: remove?
-		Impl  []Node
+		Args  []string
 	}
 	IfExpr struct {
 		Expression

@@ -119,11 +119,11 @@ func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	d := new(ast.DefineExpr)
 	d.LParen = lparen
-	d.Args = make([]string, 0) // TODO: remove?
+	d.Args = make([]string, 0)
 	tmp := p.curScope
 	d.Scope = ast.NewScope(p.curScope)
 	p.curScope = d.Scope
-	d.Impl = make([]ast.Node, 0)
+	d.Nodes = make([]ast.Node, 0)
 	p.next()
 	switch p.tok {
 	case token.LPAREN:
@@ -132,7 +132,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		d.Name = l[0].(*ast.Identifier).Lit
 		l = l[1:]
 		for _, v := range l {
-			d.Args = append(d.Args, v.(*ast.Identifier).Lit) //TODO: remove?
+			d.Args = append(d.Args, v.(*ast.Identifier).Lit)
 			d.Scope.Insert(v.(*ast.Identifier).Lit, nil)
 			p.curScope.Insert(v.(*ast.Identifier).Lit, d)
 		}
@@ -148,9 +148,9 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		switch p.tok {
 		case token.COMMENT: // skip comments
 		case token.LPAREN:
-			d.Impl = append(d.Impl, p.parseExpression())
+			d.Nodes = append(d.Nodes, p.parseExpression())
 		case token.IDENT:
-			d.Impl = append(d.Impl, p.parseIdentifier())
+			d.Nodes = append(d.Nodes, p.parseIdentifier())
 		default:
 			p.file.AddError(p.pos, "Expected expression or identifier but got: ",
 				p.lit)
@@ -158,7 +158,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		}
 		p.next()
 	}
-	if len(d.Impl) < 1 {
+	if len(d.Nodes) < 1 {
 		p.file.AddError(p.pos, "Expected list of expressions but got: ", p.lit)
 		d = nil // don't exit without reverting scope
 	}

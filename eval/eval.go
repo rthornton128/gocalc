@@ -193,7 +193,7 @@ func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
 		e.scope.Insert(d.Args[i], v)
 	}
 	var r interface{}
-	for _, v := range d.Impl {
+	for _, v := range d.Nodes {
 		r = e.eval(v)
 		if r != nil {
 			break
