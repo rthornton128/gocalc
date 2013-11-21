@@ -61,7 +61,6 @@ type (
 	}
 	PrintExpr struct {
 		Expression
-		Nodes []Node
 	}
 	SetExpr struct {
 		Expression
