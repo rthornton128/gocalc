@@ -247,8 +247,25 @@ func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 	return ie
 }
 
+func (p *parser) parseImportExpression(lp token.Pos) *ast.ImportExpr {
+	ie := new(ast.ImportExpr)
+	ie.LParen = lp
+	if p.tok != token.STRING { // p.expect(token.STRING)
+		p.file.AddError(p.pos, "Expected string, got:", p.lit)
+		return nil
+	}
+	ie.Import = p.lit
+	if p.tok != token.RPAREN { // p.expect(token.STRING)
+		p.file.AddError(p.pos, "Expected closing paren, got:", p.lit)
+		return nil
+	}
+	ie.RParen = p.pos
+	return ie
+}
+
 func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
 	me := new(ast.MathExpr)
+	me.LParen = lp
 	me.Nodes = make([]ast.Node, 0)
 	me.OpLit = p.lit
 	p.next()

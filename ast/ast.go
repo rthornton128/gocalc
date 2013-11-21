@@ -53,6 +53,7 @@ type (
 	}
 	ImportExpr struct {
 		Expression
+		Import string
 	}
 	MathExpr struct {
 		Expression

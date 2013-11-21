@@ -39,6 +39,7 @@ const (
 	AND
 	DEFINE
 	IF
+	IMPORT
 	OR
 	PRINT
 	SET
@@ -49,6 +50,7 @@ var tokens = map[string]Token{
 	"and":    AND,
 	"define": DEFINE,
 	"if":     IF,
+	"import": IMPORT,
 	"or":     OR,
 	"print":  PRINT,
 	"set":    SET,
