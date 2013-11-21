@@ -70,8 +70,7 @@ type (
 	}
 	UserExpr struct {
 		Expression
-		Name  string
-		Nodes []Node
+		Name string
 	}
 	File struct {
 		pos   token.Pos
