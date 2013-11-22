@@ -81,6 +81,22 @@ func (f *File) ValidPos(p Pos) bool {
 	return p >= f.base && p < f.base+Pos(f.size)
 }
 
+type FileSet struct {
+	files []*File
+	base  int
+}
+
+func NewFileSet() *FileSet {
+	return &FileSet{files: make([]*File, 0), base: 1}
+}
+
+func (fs *FileSet) AddFile(name, code string) *File {
+	f := NewFile(name, code, fs.base)
+	fs.files = append(fs.files, f)
+	fs.base += f.size
+	return f
+}
+
 type Pos int
 
 const NoPos Pos = 0
