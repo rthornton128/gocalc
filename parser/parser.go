@@ -74,12 +74,6 @@ func (p *parser) next() {
 func (p *parser) parse() ast.Node {
 	var n ast.Node = nil
 	switch p.tok {
-	case token.IDENT:
-		n = p.parseIdentifier()
-	case token.NUMBER:
-		n = p.parseNumber()
-	case token.STRING:
-		n = p.parseString()
 	case token.LPAREN:
 		n = p.parseExpression()
 	case token.COMMENT:
@@ -89,7 +83,17 @@ func (p *parser) parse() ast.Node {
 	case token.EOF:
 		return nil
 	default:
-		p.file.AddError(p.pos, "Unexpected token outside of expression: ", p.lit)
+		str := "token"
+		switch p.tok {
+		case token.IDENT:
+			str = "identifier"
+		case token.NUMBER:
+			str = "number"
+		case token.STRING:
+			str = "string"
+		}
+		p.file.AddError(p.pos, "Unexpected ", str, " outside of expression: ",
+			p.lit)
 		return nil
 	}
 	return n
@@ -346,6 +350,9 @@ func (p *parser) parseSubExpression() ast.Node {
 		n = p.parseExpression()
 	case token.NUMBER:
 		n = p.parseNumber()
+	case token.STRING:
+		p.file.AddError(p.pos, "Expected Number or Expression, got String:",
+			p.lit)
 	default:
 		p.file.AddError(p.pos, "Unexpected token: ", p.lit)
 	}

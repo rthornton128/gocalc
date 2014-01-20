@@ -3,20 +3,25 @@
 (print (+ (* 3 10) 6))
 (print)
 (print "test string")
+(print)
 
 ; The follow section contains errors
-a
-;+(+ 2 3)) ; uncomment to produce some errors (was for testing)
+; uncomment each line to produce the error
+;a
+;24
+;"asdf"
+;+(+ 2 3))
 ;((+ 2 3))
 ;()
 ;(foo)
 ;(+ "foo" "bar")
-
 ;(set +)
+;(print +)
+;(print b)
+
+; set a variable and print the result
 (set a (- 5 2))
 (print a)
-;(print +) ; should fail
-;(print b) ; should fail
 (print)
 
 ; define tests
@@ -31,18 +36,18 @@ a
 (define (Double a)
 	(define (dbl b) (* b 2))
 	(dbl a))
-(print (Double 8)) ; this one blows up when dbl is called
+(print (Double 8))
 (define (PrintTwice a)
 	(print a)
 	(print a))
-(PrintTwice 13) ; this function works
+(PrintTwice 13)
 (define (add a b) (+ a b))
-(print (add 1 2 3)) ; currently, 3 is discarded...does this match spec?
+(print "add" (add 1 2 3)) ; currently, 3 is discarded...does this match spec?
 (define (my-print x) (print x))
 (my-print "my-print")
 (define (decr x)
-	(set y (- x 1)) ; changing x to y is a problem. Needs scoping fix, just like
-	y)              ; user/define expressions has
+	(set y (- x 1))
+	y)
 (print (decr 3))
 (print)
 
