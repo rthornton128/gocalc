@@ -74,12 +74,6 @@ func (p *parser) next() {
 func (p *parser) parse() ast.Node {
 	var n ast.Node = nil
 	switch p.tok {
-	case token.IDENT:
-		n = p.parseIdentifier()
-	case token.NUMBER:
-		n = p.parseNumber()
-	case token.STRING:
-		n = p.parseString()
 	case token.LPAREN:
 		n = p.parseExpression()
 	case token.COMMENT:
@@ -89,7 +83,17 @@ func (p *parser) parse() ast.Node {
 	case token.EOF:
 		return nil
 	default:
-		p.file.AddError(p.pos, "Unexpected token outside of expression: ", p.lit)
+		str := "token"
+		switch p.tok {
+		case token.IDENT:
+			str = "identifier"
+		case token.NUMBER:
+			str = "number"
+		case token.STRING:
+			str = "string"
+		}
+		p.file.AddError(p.pos, "Unexpected ", str, " outside of expression: ",
+			p.lit)
 		return nil
 	}
 	return n
@@ -97,12 +101,14 @@ func (p *parser) parse() ast.Node {
 
 func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 	ce := new(ast.CompExpr)
+	ce.Nodes = make([]ast.Node, 2)
 	ce.LParen = lp
 	ce.CompLit = p.lit
 	p.next()
-	ce.A = p.parseSubExpression()
-	ce.B = p.parseSubExpression()
-	if ce.A == nil || ce.B == nil { // doesn't seem right...
+	ce.Nodes[0] = p.parseSubExpression()
+	ce.Nodes[1] = p.parseSubExpression()
+	if ce.Nodes[0] == nil || ce.Nodes[1] == nil { // doesn't seem right...
+		// TODO: Fixme!
 		p.file.AddError(p.pos, "Some kind of conditional error")
 	}
 	//p.expect(token.RPAREN)
@@ -117,11 +123,11 @@ func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	d := new(ast.DefineExpr)
 	d.LParen = lparen
-	d.Args = make([]string, 0) // TODO: remove?
+	d.Args = make([]string, 0)
 	tmp := p.curScope
 	d.Scope = ast.NewScope(p.curScope)
 	p.curScope = d.Scope
-	d.Impl = make([]ast.Node, 0)
+	d.Nodes = make([]ast.Node, 0)
 	p.next()
 	switch p.tok {
 	case token.LPAREN:
@@ -130,7 +136,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		d.Name = l[0].(*ast.Identifier).Lit
 		l = l[1:]
 		for _, v := range l {
-			d.Args = append(d.Args, v.(*ast.Identifier).Lit) //TODO: remove?
+			d.Args = append(d.Args, v.(*ast.Identifier).Lit)
 			d.Scope.Insert(v.(*ast.Identifier).Lit, nil)
 			p.curScope.Insert(v.(*ast.Identifier).Lit, d)
 		}
@@ -146,9 +152,9 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		switch p.tok {
 		case token.COMMENT: // skip comments
 		case token.LPAREN:
-			d.Impl = append(d.Impl, p.parseExpression())
+			d.Nodes = append(d.Nodes, p.parseExpression())
 		case token.IDENT:
-			d.Impl = append(d.Impl, p.parseIdentifier())
+			d.Nodes = append(d.Nodes, p.parseIdentifier())
 		default:
 			p.file.AddError(p.pos, "Expected expression or identifier but got: ",
 				p.lit)
@@ -156,7 +162,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		}
 		p.next()
 	}
-	if len(d.Impl) < 1 {
+	if len(d.Nodes) < 1 {
 		p.file.AddError(p.pos, "Expected list of expressions but got: ", p.lit)
 		d = nil // don't exit without reverting scope
 	}
@@ -222,35 +228,55 @@ func (p *parser) parseIdentifierList() *ast.Expression {
 
 func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 	ie := new(ast.IfExpr)
-	ie.LParen, ie.Else = lparen, nil
+	ie.Nodes = make([]ast.Node, 3)
+	ie.LParen = lparen
 	p.next()
-	ie.Comp = p.parseSubExpression()
-	ie.Then = p.parseSubExpression()
+	ie.Nodes[0] = p.parseSubExpression()
+	ie.Nodes[1] = p.parseSubExpression()
 	if p.tok == token.RPAREN {
-		ie.Else = nil
+		ie.Nodes[2] = nil
 		ie.RParen = p.pos
 		return ie
 	}
-	ie.Else = p.parseSubExpression()
-	if p.tok != token.RPAREN {
+	ie.Nodes[2] = p.parseSubExpression()
+	if p.tok != token.RPAREN { // TODO: p.expect(token.RPAREN)
 		p.file.AddError(p.pos, "Expected closing paren, got: ", p.lit)
 		return nil
 	}
 	ie.RParen = p.pos
-	if ie.Comp == nil || ie.Then == nil {
+	if ie.Nodes[0] == nil || ie.Nodes[1] == nil {
+		p.file.AddError(p.pos, "'if' expression must at least two elements")
 		return nil
 	}
 	return ie
 }
 
+func (p *parser) parseImportExpression(lp token.Pos) *ast.ImportExpr {
+	ie := new(ast.ImportExpr)
+	ie.LParen = lp
+	if p.tok != token.STRING { // p.expect(token.STRING)
+		p.file.AddError(p.pos, "Expected string, got:", p.lit)
+		return nil
+	}
+	ie.Import = p.lit
+	if p.tok != token.RPAREN { // p.expect(token.STRING)
+		p.file.AddError(p.pos, "Expected closing paren, got:", p.lit)
+		return nil
+	}
+	ie.RParen = p.pos
+	return ie
+}
+
 func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
 	me := new(ast.MathExpr)
+	me.LParen = lp
+	me.Nodes = make([]ast.Node, 0)
 	me.OpLit = p.lit
 	p.next()
 	for p.tok != token.RPAREN && p.tok != token.EOF {
-		me.ExprList = append(me.ExprList, p.parseSubExpression())
+		me.Nodes = append(me.Nodes, p.parseSubExpression())
 	}
-	if len(me.ExprList) < 2 {
+	if len(me.Nodes) < 2 {
 		p.file.AddError(p.pos, "Math expressions must have at least 2 arguments")
 		return nil
 	}
@@ -324,6 +350,9 @@ func (p *parser) parseSubExpression() ast.Node {
 		n = p.parseExpression()
 	case token.NUMBER:
 		n = p.parseNumber()
+	case token.STRING:
+		p.file.AddError(p.pos, "Expected Number or Expression, got String:",
+			p.lit)
 	default:
 		p.file.AddError(p.pos, "Unexpected token: ", p.lit)
 	}

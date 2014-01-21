@@ -41,30 +41,26 @@ type (
 	CompExpr struct {
 		Expression
 		CompLit string
-		A       Node
-		B       Node
 	}
 	DefineExpr struct {
 		Expression
 		Scope *Scope
 		Name  string
-		Args  []string // TODO: remove?
-		Impl  []Node
+		Args  []string
 	}
 	IfExpr struct {
 		Expression
-		Comp Node // predicate
-		Then Node
-		Else Node
+	}
+	ImportExpr struct {
+		Expression
+		Import string
 	}
 	MathExpr struct {
 		Expression
-		OpLit    string
-		ExprList []Node
+		OpLit string
 	}
 	PrintExpr struct {
 		Expression
-		Nodes []Node
 	}
 	SetExpr struct {
 		Expression
@@ -73,8 +69,7 @@ type (
 	}
 	UserExpr struct {
 		Expression
-		Name  string
-		Nodes []Node
+		Name string
 	}
 	File struct {
 		pos   token.Pos

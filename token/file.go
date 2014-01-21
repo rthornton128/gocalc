@@ -59,7 +59,11 @@ func (f *File) PrintError(e Error) {
 		}
 	}
 	line = i + 1
-	column = int(e.pos) - (f.lines[i-1] + 1)
+	if i == 0 {
+		column = int(e.pos)
+	} else {
+		column = int(e.pos) - (f.lines[i-1] + 1)
+	}
 	if len(f.name) > 0 {
 		fmt.Println(f.name, "- Line:", line, "Column:", column, "-", e.msg)
 	} else {

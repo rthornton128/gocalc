@@ -94,8 +94,8 @@ func (e *evaluator) eval(n interface{}) interface{} {
 }
 
 func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
-	a, aok := e.eval(ce.A).(int)
-	b, bok := e.eval(ce.B).(int)
+	a, aok := e.eval(ce.Nodes[0]).(int)
+	b, bok := e.eval(ce.Nodes[1]).(int)
 	if !aok || !bok {
 		return 0
 	}
@@ -121,30 +121,30 @@ func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
 }
 
 func (e *evaluator) evalIfExpr(i *ast.IfExpr) interface{} {
-	x, _ := e.eval(i.Comp).(int)
+	x, _ := e.eval(i.Nodes[0]).(int)
 	if x >= 1 {
-		return e.eval(i.Then)
+		return e.eval(i.Nodes[1])
 	}
-	return e.eval(i.Else) // returns nil if no else clause
+	return e.eval(i.Nodes[2]) // returns nil if no else clause
 }
 
 func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
 	switch m.OpLit {
 	case "+":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a + b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a + b })
 	case "-":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a - b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a - b })
 	case "*":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a * b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a * b })
 	case "/":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a / b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a / b })
 	case "%":
-		return e.evalMathFunc(m.ExprList, func(a, b int) int { return a % b })
+		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a % b })
 	case "and":
-		return e.evalMathFunc(m.ExprList,
+		return e.evalMathFunc(m.Nodes,
 			func(a, b int) int { return BtoI(ItoB(a) && ItoB(b)) })
 	case "or":
-		return e.evalMathFunc(m.ExprList,
+		return e.evalMathFunc(m.Nodes,
 			func(a, b int) int { return BtoI(ItoB(a) || ItoB(b)) })
 	default:
 		return nil // not reachable (fingers crossed!)
@@ -193,7 +193,7 @@ func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {
 		e.scope.Insert(d.Args[i], v)
 	}
 	var r interface{}
-	for _, v := range d.Impl {
+	for _, v := range d.Nodes {
 		r = e.eval(v)
 		if r != nil {
 			break
