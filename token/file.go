@@ -23,9 +23,9 @@ type File struct {
 }
 
 // In the future, will take a FileSet as an argument
-func NewFile(name, str string) *File {
+func NewFile(name, str string, base Pos) *File {
 	f := new(File)
-	f.base = 1 // will be retrieved by FileSet.Base() in future
+	f.base = base
 	f.name = name
 	f.size = len(str)
 	return f
@@ -87,7 +87,7 @@ func (f *File) ValidPos(p Pos) bool {
 
 type FileSet struct {
 	files []*File
-	base  int
+	base  Pos
 }
 
 func NewFileSet() *FileSet {
@@ -97,7 +97,7 @@ func NewFileSet() *FileSet {
 func (fs *FileSet) AddFile(name, code string) *File {
 	f := NewFile(name, code, fs.base)
 	fs.files = append(fs.files, f)
-	fs.base += f.size
+	fs.base += Pos(f.size)
 	return f
 }
 

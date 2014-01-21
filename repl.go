@@ -16,7 +16,7 @@ import (
 	"os"
 )
 
-var version = "0.1"
+var version = "0.2"
 
 func stripCR(in []byte) []byte {
 	out := make([]byte, len(in))
@@ -41,17 +41,31 @@ func main() {
 		}
 	} else {
 		fmt.Println("Welcome to Calc REPL", version)
+		fmt.Println()
+		fmt.Println("Type in expression(s) to evaluate on one or more lines.")
+		fmt.Println("Press enter on an empty line to execute the expression(s).")
+		fmt.Println("Type 'q' (without quotes) on an empty line to exit.")
 
+		in := bufio.NewReader(os.Stdin)
 		for {
 			fmt.Print(">>>")
-			in := bufio.NewReader(os.Stdin)
-			b, _ := in.ReadBytes('\n')
-			b = stripCR(b)
-			if len(b) <= 2 && b[0] == 'q' {
-				fmt.Println("QUIT!")
-				break
+			var expr string
+			stop := false
+			for !stop {
+				b, _ := in.ReadBytes('\n')
+				b = stripCR(b)
+				if len(b) <= 2 {
+					switch b[0] {
+					case 'q':
+						fmt.Println("QUIT!")
+						os.Exit(0)
+					case '\n':
+						stop = true
+					}
+				}
+				expr += string(b)
 			}
-			res := eval.EvalExpr(string(b))
+			res := eval.EvalExpr(expr)
 			if res != nil {
 				fmt.Println(res)
 			}

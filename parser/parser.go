@@ -16,7 +16,7 @@ import (
 )
 
 func ParseExpr(expr string) ast.Node {
-	f := token.NewFile("", expr)
+	f := token.NewFile("", expr, 1)
 	return ParseFile(f, expr)
 }
 

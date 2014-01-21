@@ -19,7 +19,7 @@ func EvalExpr(expr string) interface{} {
 }
 
 func EvalFile(fname, expr string) interface{} {
-	f := token.NewFile(fname, expr)
+	f := token.NewFile(fname, expr, 1)
 	n := parser.ParseFile(f, expr)
 	if f.NumErrors() > 0 {
 		f.PrintErrors()
