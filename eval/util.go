@@ -7,13 +7,13 @@
 
 package eval
 
-func BtoI(b bool) int {
+func btoi(b bool) int {
 	if b {
 		return 1
 	}
 	return 0
 }
 
-func ItoB(i int) bool {
+func itob(i int) bool {
 	return i != 0
 }

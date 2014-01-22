@@ -34,6 +34,9 @@ func EvalFile(fname, expr string) interface{} {
 	return res
 }
 
+func EvalDirectory(path string) {
+}
+
 type evaluator struct {
 	file  *token.File
 	scope *ast.Scope // current scope
@@ -101,17 +104,17 @@ func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
 	}
 	switch ce.CompLit {
 	case "<":
-		return BtoI(a < b)
+		return btoi(a < b)
 	case "<=":
-		return BtoI(a <= b)
+		return btoi(a <= b)
 	case "<>":
-		return BtoI(a != b)
+		return btoi(a != b)
 	case ">":
-		return BtoI(a > b)
+		return btoi(a > b)
 	case ">=":
-		return BtoI(a >= b)
+		return btoi(a >= b)
 	case "=":
-		return BtoI(a == b)
+		return btoi(a == b)
 	}
 	return 0
 }
@@ -142,10 +145,10 @@ func (e *evaluator) evalMathExpr(m *ast.MathExpr) interface{} {
 		return e.evalMathFunc(m.Nodes, func(a, b int) int { return a % b })
 	case "and":
 		return e.evalMathFunc(m.Nodes,
-			func(a, b int) int { return BtoI(ItoB(a) && ItoB(b)) })
+			func(a, b int) int { return btoi(itob(a) && itob(b)) })
 	case "or":
 		return e.evalMathFunc(m.Nodes,
-			func(a, b int) int { return BtoI(ItoB(a) || ItoB(b)) })
+			func(a, b int) int { return btoi(itob(a) || itob(b)) })
 	default:
 		return nil // not reachable (fingers crossed!)
 	}
