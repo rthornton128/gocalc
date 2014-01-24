@@ -42,7 +42,8 @@
 	(print a))
 (PrintTwice 13)
 (define (add a b) (+ a b))
-(print "add" (add 1 2 3)) ; currently, 3 is discarded...does this match spec?
+(print "(add 1):" (add 1))
+(print "(add 1 2 3):" (add 1 2 3)) ; bug? 3 is discarded...
 (define (my-print x) (print x))
 (my-print "my-print")
 (define (decr x)
