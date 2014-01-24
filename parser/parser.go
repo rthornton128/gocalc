@@ -373,8 +373,14 @@ func (p *parser) parseSubExpression2() ast.Node {
 }
 
 func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
-	if p.curScope.Lookup(p.lit) == nil {
+	ident := p.curScope.Lookup(p.lit)
+	if ident == nil {
 		p.file.AddError(p.pos, "Undeclared identifier: ", p.lit)
+		return nil
+	}
+	de, ok := ident.(*ast.DefineExpr)
+	if !ok {
+		p.file.AddError(p.pos, "Undeclared function: ", p.lit)
 		return nil
 	}
 	ue := new(ast.UserExpr)
@@ -385,6 +391,11 @@ func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
 		if e != nil {
 			ue.Nodes = append(ue.Nodes, e)
 		}
+	}
+	if len(ue.Nodes) != len(de.Args) {
+		p.file.AddError(p.pos, "Parameter count mismatch. Function takes ",
+			len(de.Args), " parameters, got:", len(ue.Nodes))
+		return nil
 	}
 	ue.RParen = p.pos
 	return ue

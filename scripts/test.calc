@@ -24,6 +24,9 @@
 (print a)
 (print)
 
+; Another deliberate error, uncomment to see it
+;(a 3)
+
 ; define tests
 (define f (+ 2 3))
 (print (f))
@@ -42,8 +45,7 @@
 	(print a))
 (PrintTwice 13)
 (define (add a b) (+ a b))
-(print "(add 1):" (add 1))
-(print "(add 1 2 3):" (add 1 2 3)) ; bug? 3 is discarded...
+(print "(add 2 3):" (add 2 3))
 (define (my-print x) (print x))
 (my-print "my-print")
 (define (decr x)
@@ -51,6 +53,10 @@
 	y)
 (print (decr 3))
 (print)
+
+; A couple more deliberate errors. Uncomment to see them
+;(print "(add 1):" (add 1))
+;(print "(add 1 2 3):" (add 1 2 3))
 
 ; comparison tests
 (print (< 1 2))
