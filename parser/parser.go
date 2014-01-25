@@ -31,9 +31,11 @@ func ParseFile(f *token.File, str string) *ast.File {
 	p.init(f, str)
 	p.topScope = root.Scope
 	p.curScope = root.Scope
-	for n := p.parse(); n != nil; n = p.parse() {
+	n := p.parse()
+	for p.file.NumErrors() < 10 && p.tok != token.EOF {
 		root.Nodes = append(root.Nodes, n)
 		p.next()
+		n = p.parse()
 	}
 	if p.topScope != p.curScope {
 		panic("Imbalanced scope!")
@@ -49,6 +51,10 @@ type parser struct {
 	tok      token.Token
 	pos      token.Pos
 	lit      string
+}
+
+func (p *parser) addError(args ...interface{}) {
+	p.file.AddError(p.pos, args...)
 }
 
 func (p *parser) init(file *token.File, expr string) {
@@ -72,10 +78,9 @@ func (p *parser) next() {
 }
 
 func (p *parser) parse() ast.Node {
-	var n ast.Node = nil
 	switch p.tok {
 	case token.LPAREN:
-		n = p.parseExpression()
+		return p.parseExpression()
 	case token.COMMENT:
 		// consume comment and move on
 		p.next()
@@ -92,11 +97,10 @@ func (p *parser) parse() ast.Node {
 		case token.STRING:
 			str = "string"
 		}
-		p.file.AddError(p.pos, "Unexpected ", str, " outside of expression: ",
-			p.lit)
+		p.addError("Unexpected ", str, " outside of expression: ", p.lit)
 		return nil
 	}
-	return n
+	return nil
 }
 
 func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
@@ -107,13 +111,12 @@ func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 	p.next()
 	ce.Nodes[0] = p.parseSubExpression()
 	ce.Nodes[1] = p.parseSubExpression()
-	if ce.Nodes[0] == nil || ce.Nodes[1] == nil { // doesn't seem right...
-		// TODO: Fixme!
-		p.file.AddError(p.pos, "Some kind of conditional error")
+	if ce.Nodes[0] == nil || ce.Nodes[1] == nil {
+		p.addError("Conditional must have at least two valid arguments")
 	}
 	//p.expect(token.RPAREN)
 	if p.tok != token.RPAREN {
-		p.file.AddError(p.pos, "Expected ')', got:", p.lit)
+		p.addError("Expected ')', got:", p.lit)
 		return nil
 	}
 	ce.RParen = p.pos
@@ -144,7 +147,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		d.Name = p.parseIdentifier().Lit
 		p.next()
 	default:
-		p.file.AddError(p.pos, "Expected identifier(s) but got: ", p.lit)
+		p.addError("Expected identifier(s) but got: ", p.lit)
 		return nil
 	}
 	tmp.Insert(d.Name, d)
@@ -156,18 +159,17 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 		case token.IDENT:
 			d.Nodes = append(d.Nodes, p.parseIdentifier())
 		default:
-			p.file.AddError(p.pos, "Expected expression or identifier but got: ",
-				p.lit)
+			p.addError("Expected expression or identifier but got: ", p.lit)
 			break
 		}
 		p.next()
 	}
 	if len(d.Nodes) < 1 {
-		p.file.AddError(p.pos, "Expected list of expressions but got: ", p.lit)
+		p.addError("Expected list of expressions but got: ", p.lit)
 		d = nil // don't exit without reverting scope
 	}
 	if p.tok != token.RPAREN {
-		p.file.AddError(p.pos, "Expected closing paren but got: ", p.lit)
+		p.addError("Expected closing paren but got: ", p.lit)
 		d = nil // don't exit without reverting scope
 	}
 	p.curScope = tmp
@@ -179,11 +181,11 @@ func (p *parser) parseExpression() ast.Node {
 	p.next()
 	switch p.tok {
 	case token.LPAREN:
-		p.file.AddError(p.pos, "Parse: First element of an expression may not "+
+		p.addError("First element of an expression may not " +
 			"be another expression!")
 		return nil
 	case token.RPAREN:
-		p.file.AddError(p.pos, "Parse: Empty expression not allowed.")
+		p.addError("Empty expression not allowed.")
 		return nil
 	case token.LT, token.LTE, token.GT, token.GTE, token.EQ, token.NEQ:
 		return p.parseComparisonExpression(lparen)
@@ -218,7 +220,7 @@ func (p *parser) parseIdentifierList() *ast.Expression {
 		p.next()
 	}
 	if p.tok != token.RPAREN {
-		p.file.AddError(p.pos, "Expected identifier or rparen, got: ", p.lit)
+		p.addError("Expected identifier or rparen, got: ", p.lit)
 		return nil
 	}
 	e.RParen = p.pos
@@ -240,12 +242,12 @@ func (p *parser) parseIfExpression(lparen token.Pos) *ast.IfExpr {
 	}
 	ie.Nodes[2] = p.parseSubExpression()
 	if p.tok != token.RPAREN { // TODO: p.expect(token.RPAREN)
-		p.file.AddError(p.pos, "Expected closing paren, got: ", p.lit)
+		p.addError("Expected closing paren, got: ", p.lit)
 		return nil
 	}
 	ie.RParen = p.pos
 	if ie.Nodes[0] == nil || ie.Nodes[1] == nil {
-		p.file.AddError(p.pos, "'if' expression must at least two elements")
+		p.addError("'if' expression must at least two elements")
 		return nil
 	}
 	return ie
@@ -255,12 +257,12 @@ func (p *parser) parseImportExpression(lp token.Pos) *ast.ImportExpr {
 	ie := new(ast.ImportExpr)
 	ie.LParen = lp
 	if p.tok != token.STRING { // p.expect(token.STRING)
-		p.file.AddError(p.pos, "Expected string, got:", p.lit)
+		p.addError("Expected string, got:", p.lit)
 		return nil
 	}
 	ie.Import = p.lit
 	if p.tok != token.RPAREN { // p.expect(token.STRING)
-		p.file.AddError(p.pos, "Expected closing paren, got:", p.lit)
+		p.addError("Expected closing paren, got:", p.lit)
 		return nil
 	}
 	ie.RParen = p.pos
@@ -277,7 +279,7 @@ func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
 		me.Nodes = append(me.Nodes, p.parseSubExpression())
 	}
 	if len(me.Nodes) < 2 {
-		p.file.AddError(p.pos, "Math expressions must have at least 2 arguments")
+		p.addError("Math expressions must have at least 2 arguments")
 		return nil
 	}
 	//me.ExprList = p.parseExpressionList()
@@ -288,7 +290,7 @@ func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
 func (p *parser) parseNumber() *ast.Number {
 	i, err := strconv.ParseInt(p.lit, 0, 64)
 	if err != nil {
-		p.file.AddError(p.pos, "Parse:", err)
+		p.addError(err)
 	}
 	return &ast.Number{p.pos, p.lit, int(i)}
 }
@@ -302,7 +304,7 @@ func (p *parser) parsePrintExpression(lparen token.Pos) *ast.PrintExpr {
 		pe.Nodes = append(pe.Nodes, p.parseSubExpression2())
 	}
 	if p.tok != token.RPAREN {
-		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
+		p.addError("Unknown token:", p.lit, "Expected: ')'")
 	}
 	pe.RParen = p.pos
 	return pe
@@ -311,17 +313,17 @@ func (p *parser) parsePrintExpression(lparen token.Pos) *ast.PrintExpr {
 func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 	se := new(ast.SetExpr)
 	se.LParen = lparen
-	// eventually expand this for multiple assignment
+	// TODO: eventually expand this for multiple assignment?
 	p.next()
 	if p.tok != token.IDENT {
-		p.file.AddError(p.pos, "First argument to set must be an identifier")
+		p.addError("First argument to set must be an identifier")
 		return nil
 	}
 	se.Name = p.parseIdentifier().Lit
 	p.next()
 	se.Value = p.parseSubExpression()
 	if p.tok != token.RPAREN {
-		p.file.AddError(p.pos, "Unknown token:", p.lit, "Expected: ')'")
+		p.addError("Unknown token:", p.lit, "Expected: ')'")
 	}
 	se.RParen = p.pos
 	p.curScope.Insert(se.Name, se)
@@ -341,7 +343,7 @@ func (p *parser) parseSubExpression() ast.Node {
 	case token.IDENT:
 		i := p.parseIdentifier()
 		if p.curScope.Lookup(i.Lit) == nil {
-			p.file.AddError(p.pos, "Undeclared identifier: ", i.Lit)
+			p.addError("Undeclared identifier: ", i.Lit)
 			p.next()
 			return nil
 		}
@@ -351,10 +353,10 @@ func (p *parser) parseSubExpression() ast.Node {
 	case token.NUMBER:
 		n = p.parseNumber()
 	case token.STRING:
-		p.file.AddError(p.pos, "Expected Number or Expression, got String:",
+		p.addError("Expected Number or Expression, got String:",
 			p.lit)
 	default:
-		p.file.AddError(p.pos, "Unexpected token: ", p.lit)
+		p.addError("Unexpected token: ", p.lit)
 	}
 	p.next()
 	return n
@@ -375,12 +377,12 @@ func (p *parser) parseSubExpression2() ast.Node {
 func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
 	ident := p.curScope.Lookup(p.lit)
 	if ident == nil {
-		p.file.AddError(p.pos, "Undeclared identifier: ", p.lit)
+		p.addError("Undeclared identifier: ", p.lit)
 		return nil
 	}
 	de, ok := ident.(*ast.DefineExpr)
 	if !ok {
-		p.file.AddError(p.pos, "Undeclared function: ", p.lit)
+		p.addError("Undeclared function: ", p.lit)
 		return nil
 	}
 	ue := new(ast.UserExpr)
@@ -393,7 +395,7 @@ func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {
 		}
 	}
 	if len(ue.Nodes) != len(de.Args) {
-		p.file.AddError(p.pos, "Parameter count mismatch. Function takes ",
+		p.addError("Parameter count mismatch. Function takes ",
 			len(de.Args), " parameters, got:", len(ue.Nodes))
 		return nil
 	}
