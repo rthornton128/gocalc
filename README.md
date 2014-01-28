@@ -67,10 +67,6 @@ most other builtin methods and user defined methods take an exact number of
 arguments. Supplying the incorrect number of arguments to this methods will
 result in a parsing error.
 
-*There currently exists a bug with user methods where this is not true. At
-present, user methods will discard extra arguments, or fail (sometimes
-silently), if there are not enough. This will be fixed in the future.*
-
 
 4 - License
 ===========

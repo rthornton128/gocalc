@@ -64,11 +64,6 @@ func (p *parser) init(file *token.File, expr string) {
 	p.next()
 }
 
-type perror struct {
-	pos token.Pos
-	msg error
-}
-
 func (p *parser) next() {
 	p.tok, p.pos, p.lit = p.scan.Scan()
 	p.pos += p.file.Base()
@@ -291,7 +286,7 @@ func (p *parser) parseMathExpression(lp token.Pos) ast.Node {
 	me.Nodes = make([]ast.Node, 0, 2)
 	me.OpLit = p.lit
 	p.next()
-	if p.tok == token.STRING {
+	if me.OpLit == "+" && p.tok == token.STRING {
 		return p.parseConcatExpression(lp)
 	}
 	for p.tok != token.RPAREN && p.tok != token.EOF {
