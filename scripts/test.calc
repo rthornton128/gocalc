@@ -3,6 +3,7 @@
 (print (+ (* 3 10) 6))
 (print)
 (print "test string")
+(print (+ "con" "cat (" 3 (+ 1 2)) ")" )
 (print)
 
 ; The follow section contains errors
@@ -12,9 +13,9 @@
 ;"asdf"
 ;+(+ 2 3))
 ;((+ 2 3))
+;(+ "foo")
 ;()
 ;(foo)
-;(+ "foo" "bar")
 ;(set +)
 ;(print +)
 ;(print b)
@@ -23,6 +24,9 @@
 (set a (- 5 2))
 (print a)
 (print)
+
+(set a "foo") ; This ought to blow up, as a's type would be changed
+(+ 2 a) ; This ought to fail horribly too but should be handled gracefully
 
 ; Another deliberate error, uncomment to see it
 ;(a 3)

@@ -123,6 +123,22 @@ func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 	return ce
 }
 
+func (p *parser) parseConcatExpression(lp token.Pos) *ast.ConcatExpr {
+	ce := new(ast.ConcatExpr)
+	ce.Nodes = make([]ast.Node, 0, 2)
+	ce.LParen = lp
+	for p.tok != token.RPAREN {
+		if ce.Nodes = append(ce.Nodes, p.parseSubExpression2()); ce.Nodes == nil {
+			return nil
+		}
+	}
+	if len(ce.Nodes) < 2 {
+		p.addError("Concatenation requires at least two arguments")
+		return nil
+	}
+	return ce
+}
+
 func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	d := new(ast.DefineExpr)
 	d.LParen = lparen
@@ -269,12 +285,15 @@ func (p *parser) parseImportExpression(lp token.Pos) *ast.ImportExpr {
 	return ie
 }
 
-func (p *parser) parseMathExpression(lp token.Pos) *ast.MathExpr {
+func (p *parser) parseMathExpression(lp token.Pos) ast.Node {
 	me := new(ast.MathExpr)
 	me.LParen = lp
-	me.Nodes = make([]ast.Node, 0)
+	me.Nodes = make([]ast.Node, 0, 2)
 	me.OpLit = p.lit
 	p.next()
+	if p.tok == token.STRING {
+		return p.parseConcatExpression(lp)
+	}
 	for p.tok != token.RPAREN && p.tok != token.EOF {
 		me.Nodes = append(me.Nodes, p.parseSubExpression())
 	}
@@ -321,7 +340,7 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 	}
 	se.Name = p.parseIdentifier().Lit
 	p.next()
-	se.Value = p.parseSubExpression()
+	se.Value = p.parseSubExpression2()
 	if p.tok != token.RPAREN {
 		p.addError("Unknown token:", p.lit, "Expected: ')'")
 	}

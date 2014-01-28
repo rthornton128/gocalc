@@ -42,6 +42,9 @@ type (
 		Expression
 		CompLit string
 	}
+	ConcatExpr struct {
+		Expression
+	}
 	DefineExpr struct {
 		Expression
 		Scope *Scope

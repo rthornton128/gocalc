@@ -12,6 +12,7 @@ import (
 	"github.com/rthornton128/gocalc/ast"
 	"github.com/rthornton128/gocalc/parser"
 	"github.com/rthornton128/gocalc/token"
+	"strconv"
 )
 
 func EvalExpr(expr string) interface{} {
@@ -59,6 +60,8 @@ func (e *evaluator) eval(n interface{}) interface{} {
 	switch node := n.(type) {
 	case *ast.CompExpr:
 		return e.evalCompExpr(node)
+	case *ast.ConcatExpr:
+		return e.evalConcatExpr(node)
 	case *ast.DefineExpr:
 		e.evalDefineExpr(node)
 	case *ast.File:
@@ -117,6 +120,25 @@ func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
 		return btoi(a == b)
 	}
 	return 0
+}
+
+func (e *evaluator) evalConcatExpr(ce *ast.ConcatExpr) interface{} {
+	s := ""
+	for _, node := range ce.Nodes {
+		switch t := node.(type) {
+		case *ast.Number:
+			s += t.Lit
+		default:
+			r := e.eval(t)
+			switch t := r.(type) {
+			case string:
+				s += t
+			case int:
+				s += strconv.Itoa(t)
+			}
+		}
+	}
+	return s
 }
 
 func (e *evaluator) evalDefineExpr(d *ast.DefineExpr) {
