@@ -45,8 +45,18 @@ is encapsulated by brackets '()'. An expression must start with, and have at
 most one of, an operator or method. It may contain zero or more arguments.
 Each element must be separated by an empty space.
 
-Operators include: + (add), - (subtract), * (multiply), / (divide) and
-% (remainder). An example
+Currently implemented:
+
+  * Basic mathematical operations: + - * / %
+  * Logical: and or
+  * Comparison: = <> < <= > >=
+  * Assignment: set
+	* Branching: if switch-case
+	* Methods: define
+	* Basic IO: print
+
+
+An example:
 
 (+ 3 2)
 
@@ -66,6 +76,11 @@ Operators and the print method take an arbitrary number of arguments but
 most other builtin methods and user defined methods take an exact number of
 arguments. Supplying the incorrect number of arguments to this methods will
 result in a parsing error.
+
+For working examples, check out the scripts sub directory which, currently,
+has a fibonacci and a factorial example. There is also a test script which
+you can read through with more example code. Uncomment some sections to
+produce errors.
 
 
 4 - License

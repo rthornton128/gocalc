@@ -90,8 +90,8 @@
 	(case 2 (print "Goodbye")))
 ;	(case (= a 2) (print "Error")))
 (set a 2)
-(switch 
-	(case (= a 1) 
+(switch
+	(case (= a 1)
 		(print "Hello"))
 	(case (= a 2)
 		(print "Goodbye")
@@ -103,7 +103,7 @@
 ;	(case 1 (print)))
 ;(switch c ; undeclared identifier
 ;	(case 1 (print)))
-;(switch a 
+;(switch a
 ;	(case (= a 1) (print))) ; mixed switch types; predicate vs comparison
 ;(switch
 ; (case 1) (print)) ; reverse of above
