@@ -38,6 +38,9 @@ type (
 		RParen token.Pos
 		Nodes  []Node
 	}
+	CaseExpr struct {
+		Expression
+	}
 	CompExpr struct {
 		Expression
 		CompLit string
@@ -69,6 +72,10 @@ type (
 		Expression
 		Name  string
 		Value Node
+	}
+	SwitchExpr struct {
+		Expression
+		Pred Node
 	}
 	UserExpr struct {
 		Expression

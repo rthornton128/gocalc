@@ -98,6 +98,51 @@ func (p *parser) parse() ast.Node {
 	return nil
 }
 
+func (p *parser) parseCaseExpr(compok bool) *ast.CaseExpr {
+	if p.tok != token.LPAREN {
+		p.addError("Expected opening bracket, got: ", p.lit)
+		return nil
+	}
+	lparen := p.pos
+	p.next()
+	if p.tok != token.CASE {
+		p.addError("Expected case keyword, got: ", p.lit)
+		return nil
+	}
+	p.next()
+	var comp ast.Node
+	if compok {
+		var ok bool
+		comp, ok = p.parseExpression().(*ast.CompExpr)
+		if !ok {
+			p.addError("Case is required to be a comparison expression")
+			return nil
+		}
+		p.next()
+	} else {
+		comp = p.parseSubExpression2()
+		switch comp.(type) {
+		case *ast.Number, *ast.String:
+			break
+		default:
+			p.addError("Case must be a Number or String, got:", p.lit)
+			return nil
+		}
+	}
+	//p.next()
+	nodes := make([]ast.Node, 0, 2)
+	nodes = append(nodes, comp)
+	for p.tok != token.RPAREN {
+		nodes = append(nodes, p.parse())
+		p.next()
+	}
+	if len(nodes) == 0 {
+		p.addError("Empty case not allowed")
+		return nil
+	}
+	return &ast.CaseExpr{ast.Expression{lparen, p.pos, nodes}}
+}
+
 func (p *parser) parseComparisonExpression(lp token.Pos) *ast.CompExpr {
 	ce := new(ast.CompExpr)
 	ce.Nodes = make([]ast.Node, 2)
@@ -213,6 +258,8 @@ func (p *parser) parseExpression() ast.Node {
 		return p.parsePrintExpression(lparen)
 	case token.SET:
 		return p.parseSetExpression(lparen)
+	case token.SWITCH:
+		return p.parseSwitchExpression(lparen)
 	}
 	return nil
 }
@@ -333,6 +380,9 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 		p.addError("First argument to set must be an identifier")
 		return nil
 	}
+	// Test to verify type is correct when re-setting existing variables?
+	// Can only do so much though, user expressions for example will need to
+	// be either tested in another pass or at runtime
 	se.Name = p.parseIdentifier().Lit
 	p.next()
 	se.Value = p.parseSubExpression2()
@@ -340,7 +390,10 @@ func (p *parser) parseSetExpression(lparen token.Pos) *ast.SetExpr {
 		p.addError("Unknown token:", p.lit, "Expected: ')'")
 	}
 	se.RParen = p.pos
-	p.curScope.Insert(se.Name, se)
+	// Changed Insert from se (self-referencial) to se.Value
+	// This will allow for testing to ensure a variable is a particular type
+	// TODO: Needs testing to verify this doesn't break stuff...
+	p.curScope.Insert(se.Name, se.Value)
 	return se
 }
 
@@ -386,6 +439,35 @@ func (p *parser) parseSubExpression2() ast.Node {
 		return n
 	}
 	return p.parseSubExpression()
+}
+
+func (p *parser) parseSwitchExpression(lparen token.Pos) *ast.SwitchExpr {
+	p.next()
+	var pred ast.Node
+	if p.tok == token.IDENT {
+		i := p.parseIdentifier()
+		switch p.curScope.Lookup(i.Lit).(type) {
+		case *ast.Number, *ast.String:
+			pred = i
+		case *ast.DefineExpr, *ast.UserExpr:
+			p.addError("Predicate must be a Number or String, not a function")
+		default:
+			p.addError("Undeclared identifier:", p.lit)
+			return nil
+		}
+		p.next()
+	}
+	nodes := make([]ast.Node, 0, 2)
+	for p.tok != token.RPAREN {
+		n := p.parseCaseExpr(pred == nil)
+		if n == nil {
+			return nil
+		}
+		nodes = append(nodes, n)
+		p.next()
+	}
+	return &ast.SwitchExpr{Expression: ast.Expression{LParen: lparen,
+		RParen: p.pos, Nodes: nodes}, Pred: pred}
 }
 
 func (p *parser) parseUserExpression(lp token.Pos) *ast.UserExpr {

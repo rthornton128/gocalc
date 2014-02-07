@@ -58,6 +58,8 @@ func (e *evaluator) eval(n interface{}) interface{} {
 		return nil
 	}
 	switch node := n.(type) {
+	case *ast.CaseExpr:
+		return e.evalCaseExpr(node)
 	case *ast.CompExpr:
 		return e.evalCompExpr(node)
 	case *ast.ConcatExpr:
@@ -91,12 +93,24 @@ func (e *evaluator) eval(n interface{}) interface{} {
 		return nil
 	case *ast.String:
 		return node.Lit[1 : len(node.Lit)-1]
+	case *ast.SwitchExpr:
+		e.evalSwitchExpr(node)
 	case *ast.UserExpr:
 		return e.evalUserExpr(node)
 	default:
 		return node
 	}
 	return nil // unreachable
+}
+
+func (e *evaluator) evalCaseExpr(ce *ast.CaseExpr) interface{} {
+	if e.eval(ce.Nodes[0]) == 1 {
+		for _, n := range ce.Nodes[1:] {
+			e.eval(n)
+		}
+		return 1
+	}
+	return nil
 }
 
 func (e *evaluator) evalCompExpr(ce *ast.CompExpr) interface{} {
@@ -201,6 +215,27 @@ func (e *evaluator) evalPrintExpr(p *ast.PrintExpr) {
 
 func (e *evaluator) evalSetExpr(s *ast.SetExpr) {
 	e.scope.Insert(s.Name, s.Value)
+}
+
+func (e *evaluator) evalSwitchExpr(s *ast.SwitchExpr) {
+	if s.Pred == nil {
+		for _, n := range s.Nodes {
+			if e.eval(n.(*ast.CaseExpr)) != nil {
+				break
+			}
+		}
+	} else {
+		p := e.eval(s.Pred)
+		for _, n := range s.Nodes {
+			ce := n.(*ast.CaseExpr)
+			if e.eval(ce.Nodes[0]) == p {
+				for _, y := range ce.Nodes[1:] {
+					e.eval(y)
+				}
+				break
+			}
+		}
+	}
 }
 
 func (e *evaluator) evalUserExpr(u *ast.UserExpr) interface{} {

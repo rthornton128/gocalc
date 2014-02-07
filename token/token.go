@@ -37,23 +37,27 @@ const (
 
 	key_start
 	AND
+	CASE
 	DEFINE
 	IF
 	IMPORT
 	OR
 	PRINT
 	SET
+	SWITCH
 	key_end
 )
 
 var tokens = map[string]Token{
 	"and":    AND,
+	"case":   CASE,
 	"define": DEFINE,
 	"if":     IF,
 	"import": IMPORT,
 	"or":     OR,
 	"print":  PRINT,
 	"set":    SET,
+	"switch": SWITCH,
 }
 
 func Lookup(ident string) Token {

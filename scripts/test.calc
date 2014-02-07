@@ -73,9 +73,39 @@
 (print)
 
 ; logical tests
+(print "Logical Tests")
 (print (and 1 1))
 (print (and 1 0))
 (print (and 0 0))
 (print (or 1 1))
 (print (or 1 0))
 (print (or 0 0))
+(print)
+
+; switch/case tests
+(print "Switch Tests")
+(set a 1)
+(switch a
+	(case 1 (print "Hello"))
+	(case 2 (print "Goodbye")))
+;	(case (= a 2) (print "Error")))
+(set a 2)
+(switch 
+	(case (= a 1) 
+		(print "Hello"))
+	(case (= a 2)
+		(print "Goodbye")
+		(print "But...hopefully not forever!")))
+(print)
+
+; some switch errors
+;(switch add ; user defined function
+;	(case 1 (print)))
+;(switch c ; undeclared identifier
+;	(case 1 (print)))
+;(switch a 
+;	(case (= a 1) (print))) ; mixed switch types; predicate vs comparison
+;(switch
+; (case 1) (print)) ; reverse of above
+;(switch 1 ; not allowed, number outside of expression
+;  (case 1 (print)))
