@@ -35,7 +35,7 @@ func EvalFile(fname, expr string) interface{} {
 	return res
 }
 
-func EvalDirectory(path string) {
+func EvalPackage(path string, fset *token.FileSet) {
 }
 
 type evaluator struct {

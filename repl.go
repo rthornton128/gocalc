@@ -12,8 +12,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/rthornton128/gocalc/eval"
+	"github.com/rthornton128/gocalc/token"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 var version = "0.2"
@@ -33,11 +35,37 @@ func stripCR(in []byte) []byte {
 func main() {
 	flag.Parse()
 	if flag.NArg() >= 1 {
-		data, err := ioutil.ReadFile(flag.Arg(0))
+		f, err := os.Open(flag.Arg(0))
 		if err != nil {
 			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		var fi os.FileInfo
+		fi, err = f.Stat()
+		if !fi.IsDir() {
+			data, err := ioutil.ReadFile(flag.Arg(0))
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				eval.EvalFile(flag.Arg(0), string(stripCR(data)))
+			}
 		} else {
-			eval.EvalFile(flag.Arg(0), string(stripCR(data)))
+			fset := token.NewFileSet()
+			names, err := f.Readdirnames(0)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			for _, name := range names {
+				data, err := ioutil.ReadFile(filepath.Join(flag.Arg(0), name))
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				fset.AddFile(name, string(stripCR(data)))
+			}
+			eval.EvalPackage(flag.Arg(0), fset)
 		}
 	} else {
 		fmt.Println("Welcome to Calc REPL", version)
