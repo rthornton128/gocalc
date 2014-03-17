@@ -1,0 +1,8 @@
+(define main 
+	(set a 5)
+	(set b 3)
+	(set c (- (+ a b) 2))
+
+	(print c))
+
+;(main) ; uncomment to run in interpreter

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"github.com/rthornton128/gocalc/eval"
 	"github.com/rthornton128/gocalc/token"
+	"github.com/rthornton128/gocalc/trans"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -32,15 +33,44 @@ func stripCR(in []byte) []byte {
 	return out[:i]
 }
 
+func transpileCode(out *os.File, expr string) {
+  /*data, err := ioutil.ReadFile(flag.Arg(0))
+  if err != nil {
+    fmt.Println(err)
+    os.Exit(1)
+  }*/
+  trans.TransExpr(out, string(stripCR([]byte(expr))))
+}
+
+
 func main() {
+  t := flag.Bool("t", false, "Transpile")
 	flag.Parse()
 	if flag.NArg() >= 1 {
+
+    if (*t == true) {
+      fmt.Println("transpiling")
+      out, err := os.Create("out.c")
+      if err != nil {
+        fmt.Println("create:", err)
+        os.Exit(1)
+      }
+			data, err := ioutil.ReadFile(flag.Arg(0))
+			if err != nil {
+				fmt.Println(err)
+			}
+      transpileCode(out, string(data))//flag.Arg(0))
+      return
+    }
+
+
 		f, err := os.Open(flag.Arg(0))
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		defer f.Close()
+
 		var fi os.FileInfo
 		fi, err = f.Stat()
 		if !fi.IsDir() {
