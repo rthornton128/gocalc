@@ -25,7 +25,6 @@ type translator struct {
 /* TransExpr is really only for initial testing and will probably be removed
  * in the near future */
 func TransExpr(w io.Writer, expr string) {
-	fmt.Println("transexpr")
 	TransFile(w, "", expr)
 }
 
@@ -50,21 +49,29 @@ func TransFile(w io.Writer, fname, expr string) {
 	if f.NumErrors() > 0 {
 		f.PrintErrors()
 	}
+
+	if t.scope.Lookup("main") == nil {
+		fmt.Println("No function \"main\" found!")
+	}
 	return
 }
 
 func (t *translator) nodeType(n ast.Node) string {
 	switch node := n.(type) {
-	case *ast.Number, *ast.MathExpr:
+	case *ast.CompExpr, *ast.Number, *ast.MathExpr:
 		return "int"
 	case *ast.String, *ast.ConcatExpr:
 		return "char *"
 	case *ast.DefineExpr:
 		return t.nodeType(node.Nodes[len(node.Nodes)-1])
 	case *ast.Identifier:
-		x := t.scope.Lookup(node.Lit).(ast.Node)
-		fmt.Println(x)
-		return t.nodeType(x)
+		if x := t.scope.Lookup(node.Lit); x != nil {
+			//fmt.Println(x.(ast.Node))
+			return t.nodeType(x.(ast.Node))
+		}
+		return "void *"
+	case *ast.IfExpr:
+		return t.nodeType(node.Nodes[2])
 	case *ast.UserExpr:
 		return t.nodeType(node.Nodes[len(node.Nodes)-1])
 	default:
@@ -84,6 +91,8 @@ func (t *translator) closeScope() {
 /* Transpiler */
 func (t *translator) transpile(n ast.Node, semi bool) {
 	switch node := n.(type) {
+	case *ast.CompExpr:
+		t.transCompExpr(node)
 	case *ast.DefineExpr:
 		semi = false
 		t.transDefineExpr(node)
@@ -93,6 +102,8 @@ func (t *translator) transpile(n ast.Node, semi bool) {
 		}
 	case *ast.Identifier:
 		t.write(node.Lit)
+	case *ast.IfExpr:
+		t.transIfExpr(node)
 	case *ast.MathExpr:
 		t.transMathExpr(node)
 	case *ast.Number:
@@ -142,28 +153,35 @@ func (t *translator) closeBlock() {
 func (t *translator) returnStatement(n ast.Node) {
 	t.write("return ")
 	t.transpile(n, true)
-	//t.writeln(";")
 }
 
-func (t *translator) transFuncSigs(n ast.Node) {
-	/* walk the AST and create function signatures for every function found */
-	switch node := n.(type) {
-	case *ast.DefineExpr:
-		//fmt.Println("define:", node.Name)
-		t.transFuncDecl(node)
-		t.write(";\n")
-	case *ast.File:
-		//fmt.Println("file")
-		for _, v := range node.Nodes {
-			t.transFuncSigs(v)
-		}
-	case *ast.Expression:
-		//fmt.Println("expression")
-		for _, v := range node.Nodes {
-			t.transFuncSigs(v)
-		}
+func (t *translator) transCompExpr(ce *ast.CompExpr) {
+	t.transpile(ce.Nodes[0], false)
+	if ce.CompLit == "=" {
+		t.write(" == ")
+	} else {
+		t.write(" " + ce.CompLit + " ")
 	}
-	return
+	t.transpile(ce.Nodes[1], false)
+}
+
+func (t *translator) transDefineExpr(de *ast.DefineExpr) {
+	t.scope.Insert(de.Name, de)
+	t.openScope()
+	t.transFuncDecl(de)
+	t.openBlock()
+	for i := 0; i < len(de.Nodes)-1; i++ {
+		t.transpile(de.Nodes[i], true)
+	}
+	last := de.Nodes[len(de.Nodes)-1]
+	if n, ok := last.(*ast.IfExpr); ok {
+		t.transpile(n, false)
+	} else {
+		t.returnStatement(last)
+	}
+	t.closeBlock()
+	t.closeScope()
+	t.write("\n")
 }
 
 func (t *translator) transFuncDecl(de *ast.DefineExpr) {
@@ -172,6 +190,7 @@ func (t *translator) transFuncDecl(de *ast.DefineExpr) {
 	for i, a := range de.Args {
 		t.write("int ") /* again, so bad... */
 		t.write(a)
+		t.scope.Insert(a, 0)
 		if i < len(de.Args)-1 {
 			t.write(",")
 		}
@@ -182,16 +201,45 @@ func (t *translator) transFuncDecl(de *ast.DefineExpr) {
 	t.write(")")
 }
 
-func (t *translator) transDefineExpr(de *ast.DefineExpr) {
-	t.scope.Insert(de.Name, de)
-	t.transFuncDecl(de)
-	t.openBlock()
-	for i := 0; i < len(de.Nodes)-1; i++ {
-		t.transpile(de.Nodes[i], true)
+func (t *translator) transFuncSigs(n ast.Node) {
+	/* walk the AST and create function signatures for every function found */
+	switch node := n.(type) {
+	case *ast.DefineExpr:
+		t.transFuncDecl(node)
+		t.write(";\n")
+	case *ast.File:
+		for _, v := range node.Nodes {
+			t.transFuncSigs(v)
+		}
+	case *ast.Expression:
+		for _, v := range node.Nodes {
+			t.transFuncSigs(v)
+		}
 	}
-	t.returnStatement(de.Nodes[len(de.Nodes)-1]) /* temp: very much not right...*/
+	return
+}
+
+func (t *translator) transIfExpr(ie *ast.IfExpr) {
+	t.write("if (")
+	t.transpile(ie.Nodes[0], false)
+	t.write(")")
+	t.openBlock()
+	switch ie.Nodes[1].(type) {
+	case *ast.Identifier, *ast.Number, *ast.String, *ast.MathExpr, *ast.UserExpr:
+		t.write("return ")
+	}
+	t.transpile(ie.Nodes[1], true)
 	t.closeBlock()
-	t.write("\n")
+	if ie.Nodes[2] != nil {
+		t.write("else")
+		t.openBlock()
+		switch ie.Nodes[2].(type) {
+		case *ast.Number, *ast.String, *ast.MathExpr, *ast.UserExpr:
+			t.write("return ")
+		}
+		t.transpile(ie.Nodes[2], true)
+		t.closeBlock()
+	}
 }
 
 func (t *translator) transMathExpr(me *ast.MathExpr) {
@@ -199,7 +247,14 @@ func (t *translator) transMathExpr(me *ast.MathExpr) {
 	for i, n := range me.Nodes {
 		t.transpile(n, false)
 		if i < len(me.Nodes)-1 {
-			t.write(me.OpLit)
+			switch me.OpLit {
+			case "or":
+				t.write("||")
+			case "and":
+				t.write("&&")
+			default:
+				t.write(me.OpLit)
+			}
 		}
 	}
 	t.write(")")
@@ -241,9 +296,6 @@ func (t *translator) transSetExpr(se *ast.SetExpr) {
 func (t *translator) transUserExpr(ue *ast.UserExpr) {
 	t.write(ue.Name + "(")
 	for i, v := range ue.Nodes {
-		//if _, ok := v.(*ast.Identifier); ok {
-		//t.write("&")
-		//}
 		t.transpile(v, false)
 		if i < len(ue.Nodes)-1 {
 			t.write(",")
