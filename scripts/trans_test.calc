@@ -1,8 +1,14 @@
+(define (dbl x) (* x 2))
+
 (define main 
 	(set a 5)
 	(set b 3)
 	(set c (- (+ a b) 2))
-
-	(print c))
+	(print c)
+	(set d (dbl a))
+	(print d)
+	(print (dbl 2))
+	(print "string")
+	0)
 
 ;(main) ; uncomment to run in interpreter

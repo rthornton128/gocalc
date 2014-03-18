@@ -208,17 +208,7 @@ func (p *parser) parseDefineExpression(lparen token.Pos) *ast.DefineExpr {
 	}
 	tmp.Insert(d.Name, d)
 	for p.tok != token.RPAREN {
-		switch p.tok {
-		case token.COMMENT: // skip comments
-		case token.LPAREN:
-			d.Nodes = append(d.Nodes, p.parseExpression())
-		case token.IDENT:
-			d.Nodes = append(d.Nodes, p.parseIdentifier())
-		default:
-			p.addError("Expected expression or identifier but got: ", p.lit)
-			break
-		}
-		p.next()
+		d.Nodes = append(d.Nodes, p.parseSubExpression2())
 	}
 	if len(d.Nodes) < 1 {
 		p.addError("Expected list of expressions but got: ", p.lit)

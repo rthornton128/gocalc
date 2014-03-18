@@ -32,24 +32,44 @@ func TransExpr(w io.Writer, expr string) {
 func TransFile(w io.Writer, fname, expr string) {
 	f := token.NewFile(fname, expr, 1)
 	n := parser.ParseFile(f, expr)
-	
-  if f.NumErrors() > 0 {
+
+	if f.NumErrors() > 0 {
 		f.PrintErrors()
 		return
 	}
 
-	t := &translator{out: w, file: f} //, scope: n.Scope}
+	t := &translator{out: w, file: f, scope: n.Scope}
 	t.topComment()
 	/* includes will/might eventually reflect the imports from Calc. It's
 	 * possible that stdio might be an auto-include if print remains a
 	 * built-in function, which is likely won't */
 	t.includes() /* temporary */
+	t.transFuncSigs(n)
 	t.transpile(n, false)
 
-  if f.NumErrors() > 0 {
+	if f.NumErrors() > 0 {
 		f.PrintErrors()
 	}
 	return
+}
+
+func (t *translator) nodeType(n ast.Node) string {
+	switch node := n.(type) {
+	case *ast.Number, *ast.MathExpr:
+		return "int"
+	case *ast.String, *ast.ConcatExpr:
+		return "char *"
+	case *ast.DefineExpr:
+		return t.nodeType(node.Nodes[len(node.Nodes)-1])
+	case *ast.Identifier:
+		x := t.scope.Lookup(node.Lit).(ast.Node)
+		fmt.Println(x)
+		return t.nodeType(x)
+	case *ast.UserExpr:
+		return t.nodeType(node.Nodes[len(node.Nodes)-1])
+	default:
+		return "void *"
+	}
 }
 
 /* Scope */
@@ -81,6 +101,10 @@ func (t *translator) transpile(n ast.Node, semi bool) {
 		t.transPrintExpr(node)
 	case *ast.SetExpr:
 		t.transSetExpr(node)
+	case *ast.String:
+		t.write(node.Lit)
+	case *ast.UserExpr:
+		t.transUserExpr(node)
 	}
 	if semi {
 		t.write(";\n")
@@ -115,14 +139,38 @@ func (t *translator) closeBlock() {
 	t.writeln("}")
 }
 
-func (t *translator) returnStatement() {
-	t.writeln("return 0;")
+func (t *translator) returnStatement(n ast.Node) {
+	t.write("return ")
+	t.transpile(n, true)
+	//t.writeln(";")
 }
 
-func (t *translator) transDefineExpr(de *ast.DefineExpr) {
-	t.write("int ") /* temporary, type should be inferred */
+func (t *translator) transFuncSigs(n ast.Node) {
+	/* walk the AST and create function signatures for every function found */
+	switch node := n.(type) {
+	case *ast.DefineExpr:
+		//fmt.Println("define:", node.Name)
+		t.transFuncDecl(node)
+		t.write(";\n")
+	case *ast.File:
+		//fmt.Println("file")
+		for _, v := range node.Nodes {
+			t.transFuncSigs(v)
+		}
+	case *ast.Expression:
+		//fmt.Println("expression")
+		for _, v := range node.Nodes {
+			t.transFuncSigs(v)
+		}
+	}
+	return
+}
+
+func (t *translator) transFuncDecl(de *ast.DefineExpr) {
+	t.write(t.nodeType(de) + " ")
 	t.write(de.Name + "(")
 	for i, a := range de.Args {
+		t.write("int ") /* again, so bad... */
 		t.write(a)
 		if i < len(de.Args)-1 {
 			t.write(",")
@@ -132,11 +180,16 @@ func (t *translator) transDefineExpr(de *ast.DefineExpr) {
 		t.write("void")
 	}
 	t.write(")")
+}
+
+func (t *translator) transDefineExpr(de *ast.DefineExpr) {
+	t.scope.Insert(de.Name, de)
+	t.transFuncDecl(de)
 	t.openBlock()
-	for _, n := range de.Nodes {
-		t.transpile(n, true)
+	for i := 0; i < len(de.Nodes)-1; i++ {
+		t.transpile(de.Nodes[i], true)
 	}
-	t.returnStatement()
+	t.returnStatement(de.Nodes[len(de.Nodes)-1]) /* temp: very much not right...*/
 	t.closeBlock()
 	t.write("\n")
 }
@@ -153,13 +206,48 @@ func (t *translator) transMathExpr(me *ast.MathExpr) {
 }
 
 func (t *translator) transPrintExpr(pe *ast.PrintExpr) {
-	t.write("printf(\"%d\",")
-	t.transpile(pe.Nodes[0], false)
+	t.write("printf(\"")
+	for i, n := range pe.Nodes {
+		switch t.nodeType(n) {
+		case "int":
+			t.write("%d")
+		case "char *":
+			t.write("%s")
+		case "void *":
+			t.write("%p")
+		}
+		if i < len(pe.Nodes)-1 {
+			t.write(" ")
+		}
+	}
+	if len(pe.Nodes) > 0 {
+		t.write("\\n\",")
+		for _, n := range pe.Nodes {
+			t.transpile(n, false)
+		}
+	} else {
+		t.write("\"")
+	}
 	t.write(")")
 }
 
 func (t *translator) transSetExpr(se *ast.SetExpr) {
-	t.write("int ") /* temp */
+	t.scope.Insert(se.Name, se.Value)
+	t.write(t.nodeType(se.Value) + " ")
 	t.write(se.Name + " = ")
 	t.transpile(se.Value, false)
+}
+
+func (t *translator) transUserExpr(ue *ast.UserExpr) {
+	t.write(ue.Name + "(")
+	for i, v := range ue.Nodes {
+		//if _, ok := v.(*ast.Identifier); ok {
+		//t.write("&")
+		//}
+		t.transpile(v, false)
+		if i < len(ue.Nodes)-1 {
+			t.write(",")
+		}
+	}
+	t.write(")")
 }
